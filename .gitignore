@@ -1,0 +1,46 @@
+# --- Python / build ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.build/
+dist/
+.env
+.venv
+venv/
+.envrc
+
+# --- IDE / OS ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- Checkpoints / logs ---
+logs/
+wandb/
+runs/
+*.log
+
+# --- Data: ignore all, re-allow specific tracked files ---
+/data/*
+!/data/*.py
+!/data/__init__.py
+!/data/*.yaml
+!/data/*.yml
+!/data/*.json
+!/data/README.md
+
+# --- Models / weights ---
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.mlpackage
+*.tflite
+
+# --- Notebooks checkpoints ---
+.ipynb_checkpoints/
+
+# --- Torch / CUDA caches ---
+.cache/
