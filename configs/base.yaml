@@ -1,0 +1,50 @@
+# ------ Paths and dataset ------
+root_path: './'            # base path for feature caches and outputs
+dataset: 'cs'              # custom CS dataset identifier
+output_dir: './results'
+
+# ------ CLIP / Model settings ------
+backbone: 'RN50'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
+resolution: 224            # enforced input size for CLIP visual encoder
+SUBSAMPLE_CLASSES: 'all'
+
+# ------ ProLIP training (projector) ------
+method: 'ProLIP'
+train_epoch: 100           # projector training epochs (few-shot can use 300)
+lr_v: 0.00001              # projector learning rate
+lambda_v: 0.1              # fallback regularization strength
+lambda_funct_1_N: True     # if True, lambda = 1/N (shots)
+lambda_funct_1_N2: False   # alternative lambda = 1/N^2
+search_lr: False           # disable grid-search by default
+feat_batch_size: 0         # 0 = full-batch (few-shot); >0 enables chunking for full-data
+
+# ------ Feature caching ------
+save_features: False       # set True to precompute and cache pre-projection features
+aug_views: 1               # number of augmentation views to cache (use 300 for few-shot)
+batch_size: 16             # batch size used for feature saving
+shuffle: True
+
+# ------ Data settings for CS ------
+data:
+  dataset_paths: []        # List of train image folder paths
+  index_file_names: []     # List of CSV label files (parallel to dataset_paths)
+  metadata: False
+  batch_size: 16
+  shuffle: True
+  num_workers: 0
+  data_split:
+    valid_split: 0.2
+    split_seed: 42
+  use_l2_label: False
+  preprocessing:
+    resize: 439            # OpenCV resize used during bulk loading to reduce memory
+    augmentations:
+      crop: ratio          # ratio -> int(resize*0.875), or use an int
+      bottom_crop: False
+      random_crop: True
+      flip: False
+      rotation: True
+
+# ------ Training mode (loader control) ------
+shots: 0                   # 0 (or <1) -> full-data; N>0 -> few-shot per class
+seed: 1

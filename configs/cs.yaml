@@ -1,0 +1,26 @@
+# CS dataset override
+
+data:
+  dataset_paths:
+    - './data/CS_Xplots_2019_2023_train'
+  index_file_names:
+    - 'CS_Xplots_2019_23_NEW02OCT24.csv'
+  batch_size: 16
+  shuffle: True
+  num_workers: 0
+  preprocessing:
+    resize: 439
+    augmentations:
+      crop: ratio
+      bottom_crop: False
+      random_crop: True
+      flip: False
+      rotation: True
+
+# Default to full-data for initial inspection
+shots: 0
+seed: 1
+backbone: 'RN50'
+resolution: 224
+aug_views: 1
+
