@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -183,45 +184,86 @@ class ProLIP(FSCLIPmethod):
             else:
                 cnt +=1
             train_x_before = train_x_before_list[cnt]
-            train_x_before , target = train_x_before.cuda(), train_labels.cuda()
-    
-            image_features = proj(train_x_before)
-            image_features = F.normalize(image_features,dim=-1)
+            target = train_labels
 
-            logits = 100. * image_features @ text_weights
+            # Optional mini-batch training over precomputed features to support full-data tuning
+            feat_batch_size = cfg.get('feat_batch_size', 0)
 
-            if cfg['backbone'] == "RN50" or cfg['backbone'] == "RN101":
-                initial_params = weight_init_copy.view(-1)
-                fine_tuned_params = proj.linear.weight.view(-1)
+            if feat_batch_size and feat_batch_size > 0:
+                N = train_x_before.size(0)
+                num_chunks = math.ceil(N / feat_batch_size)
+                # scale regularizer so its total magnitude per epoch matches the non-chunked case
+                lambda_scaled = lambda_v / float(max(num_chunks, 1))
 
-            elif cfg['backbone'] == "ViT-B/16" or cfg['backbone'] == "ViT-B/32":
-                initial_params = vit_proj_copy.view(-1)
-                fine_tuned_params = proj.vit_proj.view(-1)
+                for i0 in range(0, N, feat_batch_size):
+                    i1 = min(i0 + feat_batch_size, N)
+                    batch_x = train_x_before[i0:i1].cuda(non_blocking=True)
+                    batch_y = target[i0:i1].cuda(non_blocking=True)
 
-            mse_loss = mse(initial_params,fine_tuned_params)
-           
-            loss1 = F.cross_entropy(logits, target)
-            loss2 =  mse_loss
-            loss = loss1 + lambda_v * loss2
+                    image_features = proj(batch_x)
+                    image_features = F.normalize(image_features, dim=-1)
+                    logits = 100.0 * image_features @ text_weights
 
-            acc = cls_acc(logits, target)
-            correct_samples += acc / 100 * len(logits)
-            all_samples += len(logits)
-            loss_list_ce.append(loss1.item())
-            loss_list_mse.append(loss2.item())
+                    if cfg['backbone'] == "RN50" or cfg['backbone'] == "RN101":
+                        initial_params = weight_init_copy.view(-1)
+                        fine_tuned_params = proj.linear.weight.view(-1)
+                    elif cfg['backbone'] == "ViT-B/16" or cfg['backbone'] == "ViT-B/32":
+                        initial_params = vit_proj_copy.view(-1)
+                        fine_tuned_params = proj.vit_proj.view(-1)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                    mse_loss = mse(initial_params, fine_tuned_params)
+                    loss1 = F.cross_entropy(logits, batch_y)
+                    loss2 = mse_loss
+                    loss = loss1 + lambda_scaled * loss2
+
+                    acc = cls_acc(logits, batch_y)
+                    correct_samples += acc / 100 * len(logits)
+                    all_samples += len(logits)
+                    loss_list_ce.append(loss1.item())
+                    loss_list_mse.append(loss2.item())
+
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+            else:
+                # Single full-batch step (few-shot typical path)
+                batch_x = train_x_before.cuda()
+                batch_y = target.cuda()
+
+                image_features = proj(batch_x)
+                image_features = F.normalize(image_features, dim=-1)
+                logits = 100.0 * image_features @ text_weights
+
+                if cfg['backbone'] == "RN50" or cfg['backbone'] == "RN101":
+                    initial_params = weight_init_copy.view(-1)
+                    fine_tuned_params = proj.linear.weight.view(-1)
+                elif cfg['backbone'] == "ViT-B/16" or cfg['backbone'] == "ViT-B/32":
+                    initial_params = vit_proj_copy.view(-1)
+                    fine_tuned_params = proj.vit_proj.view(-1)
+
+                mse_loss = mse(initial_params, fine_tuned_params)
+                loss1 = F.cross_entropy(logits, batch_y)
+                loss2 = mse_loss
+                loss = loss1 + lambda_v * loss2
+
+                acc = cls_acc(logits, batch_y)
+                correct_samples += acc / 100 * len(logits)
+                all_samples += len(logits)
+                loss_list_ce.append(loss1.item())
+                loss_list_mse.append(loss2.item())
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            # Advance LR schedule once per epoch for stability
             scheduler.step()
            
             print('Acc: {:.4f} ({:}/{:}), Loss_ce: {:.4f}, Loss_mse: {:.4f}'.format(correct_samples / all_samples, correct_samples, all_samples, sum(loss_list_ce)/len(loss_list_ce), sum(loss_list_mse)/len(loss_list_mse)))
         torch.cuda.empty_cache()
-        train_x_before = train_x_before.cpu()
-        train_labels = train_labels.cpu()
-
+        # free references
         del train_x_before
-        del train_labels
+        del target
         
         if cfg['save_checkpoints'] == True:
             save_path = Path("trained_models") / config_file /cfg['dataset'] / f"{shots}_shot" / f"{cfg['dataset']}_seed{task}.pth"
