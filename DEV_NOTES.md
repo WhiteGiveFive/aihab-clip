@@ -32,7 +32,13 @@ Current Status
   - CLIP v2 transforms with aihab augment flags + CLIP normalization.
   - Full-data and few-shot loaders over preloaded arrays (efficient once loaded).
   - Inspection: prints merged config, transforms, a sample train/test batch (shapes + label names), dataloader size, and (in few-shot) selected indices per class.
-- Ready to add next: feature saving (aug_views), projector training/eval, config toggles for saving/training.
+  - CLIP init + CS text head build (step 1):
+    - Loads CLIP via local clip.load(backbone) → returns (state_dict, clip_model, preprocess).
+    - Builds text classifier from CS_TEMPLATES × CS_CLASSNAMES via utils.clip_classifier.
+    - Prints: backbone, device, inferred visual resolution, clip_cache_root, expected_model_path, file existence.
+    - Prints text head summary: num_classes, num_templates, text_weights_before.shape, text_weights.shape, dtype/device, and sample prompts.
+    - Note: clip_classifier now respects model device (CPU/GPU) and no longer assumes CUDA.
+  - Ready to add next: feature saving (aug_views), projector training/eval, config toggles for saving/training.
 
 Few-Shot Mechanics (important mental model)
 - Selection is done ONCE per run/seed, not per epoch.
@@ -54,6 +60,7 @@ Config Conventions
 - feat_batch_size: optional; splits cached feature tensor into chunks to prevent OOM in full-data mode; regularizer scaled per chunk.
 - lr_v, lambda_v or lambda_funct_1_N (λ = 1/N) / lambda_funct_1_N2 (λ = 1/N^2) mirror ProLIP’s practice.
 - --opts: top-level overrides only; keep it last and use KEY VALUE pairs (e.g., shots 4 seed 1). Don’t pass flags after --opts.
+ - clip_cache_dir: optional; overrides default CLIP cache root (defaults to ~/.cache/clip). main.py prints the expected model path and whether it exists.
 
 Paths & CWD Assumptions
 - Run commands from aihab-clip/:
@@ -82,16 +89,14 @@ aihab Project (for quick recall)
 - aihab/methods/*, aihab/models/*: baseline pipelines (not used here, but informative for labels and data organization).
 
 Next Steps Checklist (what to implement next in main.py)
-1) CLIP Init + Text Head
-   - Import from aihab-clip/clip: state_dict, clip_model, preprocess = clip.load(backbone).
-   - Build CS text embeddings: from data.templates import CS_TEMPLATES, CS_CLASSNAMES → utils.clip_classifier.
-   - Print: backbone, resolution inferred, text weights shape.
+1) CLIP Init + Text Head — COMPLETED
+   - Loads CLIP and prints cache info; builds CS text head with prompt ensemble and prints shapes/dtypes.
 
 2) Feature Saving Loop
    - If cfg.save_features: True → for v in range(aug_views):
        - Iterate train loader once, call clip_model.encode_image(imgs), collect x_before_proj (pre-projection features) + labels.
        - Save to: <root_path>/features_<Backbone>_cs/<shots>_shot/seed<seed>/f{v}.pth and label.pth (labels saved once when v==0).
-   - Print: save paths and tensor shapes.
+       - Print: save paths and tensor shapes.
 
 3) Projector Training + Eval (wire methods/ProLIP.ProLIP)
    - Load cached features + labels for aug_views.
@@ -126,4 +131,3 @@ Quick Commands Cheat Sheet
   - python main.py --base_config configs/base.yaml --dataset_config configs/cs.yaml --opts shots 4 seed 1 save_features True aug_views 300
 - (After training added) Example:
   - python main.py --base_config configs/base.yaml --dataset_config configs/cs.yaml --opts shots 4 seed 1 train_epoch 300 lr_v 1e-5 lambda_funct_1_N True
-

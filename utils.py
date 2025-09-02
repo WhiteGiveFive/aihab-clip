@@ -30,6 +30,7 @@ def compute_confidence_interval(data, axis=0):
 
 def clip_classifier(classnames, template, clip_model):
     with torch.no_grad():
+        device = next(clip_model.parameters()).device
         clip_weights = []
         clip_weights_before = []
         texts_ = []
@@ -38,7 +39,7 @@ def clip_classifier(classnames, template, clip_model):
             # Tokenize the prompts
             classname = classname.replace('_', ' ')
             texts = [t.format(classname) for t in template]
-            texts = clip.tokenize(texts).cuda()
+            texts = clip.tokenize(texts).to(device)
             # prompt ensemble for ImageNet
             x_before, class_embeddings = clip_model.encode_text(texts)
             x_before = x_before.squeeze(dim=1)
@@ -49,9 +50,9 @@ def clip_classifier(classnames, template, clip_model):
             clip_weights_before.append(x_before)
             texts_.append(texts[0])
 
-        clip_weights_before = torch.stack(clip_weights_before, dim=1).cuda()
-        clip_weights = torch.stack(clip_weights, dim=1).cuda()
-        texts = torch.stack(texts_,dim=0)
+        clip_weights_before = torch.stack(clip_weights_before, dim=1).to(device)
+        clip_weights = torch.stack(clip_weights, dim=1).to(device)
+        texts = torch.stack(texts_, dim=0)
 
     return texts, clip_weights_before, clip_weights
 

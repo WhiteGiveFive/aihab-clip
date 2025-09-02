@@ -2,7 +2,7 @@ import argparse
 import os
 import random
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import numpy as np
 import torch
@@ -10,6 +10,8 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 
 from utils import load_cfg_from_cfg_file, merge_cfg_from_list
+from utils import clip_classifier
+import clip  # local package aihab-clip/clip
 from data.dataset import image_loader
 from data.clip_transforms import build_clip_transforms, CLIP_MEAN, CLIP_STD
 from data.templates import CS_TEMPLATES, CS_CLASSNAMES
@@ -132,6 +134,87 @@ def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, object, object, dict]:
     return dl_tr, dl_te, train_tf, test_tf, info
 
 
+def _default_clip_cache_root() -> str:
+    # Mirror clip.load default
+    return os.path.expanduser("~/.cache/clip")
+
+
+def _expected_clip_model_path(backbone: str, download_root: Optional[str]) -> Optional[str]:
+    """Best-effort reconstruction of the cache path used by clip.load for a named backbone.
+
+    If `backbone` is a known model name, return <root>/<checkpoint_name>. If `backbone` looks like a
+    filesystem path to a checkpoint, return it if exists; otherwise None.
+    """
+    root = download_root or _default_clip_cache_root()
+    # Access internal map; safe here since we vendor the clip package locally
+    try:
+        url_map = clip._MODELS  # type: ignore[attr-defined]
+        if backbone in url_map:
+            fname = os.path.basename(url_map[backbone])
+            return os.path.join(root, fname)
+    except Exception:
+        pass
+    # Fallback: if user provided an explicit checkpoint path
+    if os.path.isfile(backbone):
+        return backbone
+    return None
+
+
+def init_clip_and_text_head(cfg):
+    """Load CLIP and build the CS text classifier. Prints detailed inspection info.
+
+    Returns a dict with: state_dict, clip_model, preprocess, texts, text_weights_before, text_weights.
+    """
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    backbone = cfg.get('backbone', 'RN50')
+    cache_root = cfg.get('clip_cache_dir', None)
+
+    expected_path = _expected_clip_model_path(backbone, cache_root)
+    if expected_path is None:
+        expected_path = os.path.join(_default_clip_cache_root(), f"{backbone.replace('/', '-')}.pt")
+
+    # Load model
+    state_dict, clip_model, preprocess = clip.load(backbone, device=device, jit=False, download_root=cache_root)
+
+    # Build text weights for CS
+    texts, clip_w_before, clip_w = clip_classifier(CS_CLASSNAMES, CS_TEMPLATES, clip_model)
+
+    # Inspection prints
+    print("\n==== CLIP Init & Text Head ====")
+    print({
+        'backbone': backbone,
+        'device': device,
+        'inferred_resolution': getattr(getattr(clip_model, 'visual', None), 'input_resolution', None),
+        'clip_cache_root': cache_root or _default_clip_cache_root(),
+        'expected_model_path': expected_path,
+        'model_file_exists': os.path.isfile(expected_path),
+    })
+
+    print("\nText head summary:")
+    print({
+        'num_classes': len(CS_CLASSNAMES),
+        'num_templates': len(CS_TEMPLATES),
+        'text_weights_before.shape': tuple(clip_w_before.shape),
+        'text_weights.shape': tuple(clip_w.shape),
+        'dtype': str(clip_w.dtype),
+        'device': str(clip_w.device),
+    })
+
+    sample_classes = [REASSIGN_LABEL_NAME_L3[i] for i in sorted(REASSIGN_LABEL_NAME_L3.keys())[:5]]
+    sample_prompts = [CS_TEMPLATES[0].format(c) for c in sample_classes]
+    print("sample classes (first 5):", sample_classes)
+    print("sample prompts (first template):", sample_prompts)
+
+    return {
+        'state_dict': state_dict,
+        'clip_model': clip_model,
+        'preprocess': preprocess,
+        'texts': texts,
+        'text_weights_before': clip_w_before,
+        'text_weights': clip_w,
+    }
+
+
 def inspect(cfg, train_tf, test_tf, dl_tr, dl_te, info: dict, max_show: int = 4):
     # Print configs
     print("\n==== Loaded Config ====")
@@ -219,6 +302,9 @@ def main():
 
     # Always inspect in this step-by-step stage
     inspect(cfg, train_tf, test_tf, dl_tr, dl_te, info)
+
+    # Step 1: CLIP init + CS text head
+    _ = init_clip_and_text_head(cfg)
 
     if not args.inspect_only:
         print("\nNext steps: feature saving + ProLIP training will be added.")
