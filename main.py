@@ -69,7 +69,7 @@ def derive_test_paths(train_paths: List[str]) -> List[str]:
     return [p.replace('_train', '_test') for p in train_paths]
 
 
-def build_loaders(cfg) -> Tuple[DataLoader, DataLoader]:
+def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, object, object, dict]:
     # Build CLIP-friendly transforms honoring aihab aug flags
     train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=cfg['resolution'])
     test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=cfg['resolution'])
@@ -87,9 +87,10 @@ def build_loaders(cfg) -> Tuple[DataLoader, DataLoader]:
     seed = int(cfg.get('seed', 1))
     rng = np.random.RandomState(seed)
 
-    if int(cfg.get('shots', 0)) and int(cfg.get('shots', 0)) > 0:
+    shots_val = int(cfg.get('shots', 0)) if cfg.get('shots', 0) is not None else 0
+    if shots_val > 0:
         # Few-shot on train
-        sel_tr = few_shot_indices(labels_tr, int(cfg['shots']), rng)
+        sel_tr = few_shot_indices(labels_tr, shots_val, rng)
     else:
         # Full-data
         sel_tr = np.arange(images_tr.shape[0])
@@ -111,10 +112,27 @@ def build_loaders(cfg) -> Tuple[DataLoader, DataLoader]:
                        num_workers=cfg['data']['num_workers'],
                        pin_memory=True)
 
-    return dl_tr, dl_te, train_tf, test_tf
+    # Few-shot selection map for inspection
+    selection_by_class = None
+    if shots_val > 0:
+        selection_by_class = {}
+        classes = np.unique(labels_tr)
+        for c in classes:
+            idx_c = sel_tr[labels_tr[sel_tr] == c]
+            selection_by_class[int(c)] = idx_c.tolist()
+
+    info = {
+        'is_few_shot': shots_val > 0,
+        'shots': shots_val,
+        'train_size': int(len(sel_tr)),
+        'train_batches': int(len(dl_tr)),
+        'selection_by_class': selection_by_class,
+    }
+
+    return dl_tr, dl_te, train_tf, test_tf, info
 
 
-def inspect(cfg, train_tf, test_tf, dl_tr, dl_te, max_show: int = 4):
+def inspect(cfg, train_tf, test_tf, dl_tr, dl_te, info: dict, max_show: int = 4):
     # Print configs
     print("\n==== Loaded Config ====")
     print(cfg)
@@ -133,6 +151,18 @@ def inspect(cfg, train_tf, test_tf, dl_tr, dl_te, max_show: int = 4):
     # Map to classnames for readability
     lbl_names = [REASSIGN_LABEL_NAME_L3[int(y)] for y in yb[:max_show].tolist()]
     print(f"label names: {lbl_names}")
+
+    # Dataloader size and few-shot selection details
+    print("\n==== Train Loader Size ====")
+    print(f"dataset size: {len(dl_tr.dataset)}  num_batches: {len(dl_tr)}")
+    if info.get('is_few_shot'):
+        shots = info.get('shots')
+        print(f"few-shot mode: {shots} per class")
+        sel_map = info.get('selection_by_class') or {}
+        print("selected indices by class (absolute indices into train array):")
+        # Sorted by class id for stable display
+        for cls_id in sorted(sel_map.keys()):
+            print(f"  class {cls_id}: {sel_map[cls_id]}")
 
     # Show one batch from test
     print("\n==== Test Batch Sample ====")
@@ -185,10 +215,10 @@ def main():
     cfg = load_configs(args)
     set_seed(int(cfg.get('seed', 1)))
 
-    dl_tr, dl_te, train_tf, test_tf = build_loaders(cfg)
+    dl_tr, dl_te, train_tf, test_tf, info = build_loaders(cfg)
 
     # Always inspect in this step-by-step stage
-    inspect(cfg, train_tf, test_tf, dl_tr, dl_te)
+    inspect(cfg, train_tf, test_tf, dl_tr, dl_te, info)
 
     if not args.inspect_only:
         print("\nNext steps: feature saving + ProLIP training will be added.")
