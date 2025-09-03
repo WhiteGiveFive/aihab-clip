@@ -131,18 +131,36 @@ def compute_centroids(z_s: torch.tensor,
 
 
 
-def compute_image_features(clip_model, loader):
-    
+def compute_image_features(clip_model, loader, to_cpu: bool = False):
+    """
+    Compute pre-projection image features for a loader using the given CLIP model.
+
+    - Device-agnostic: infers the model's parameter device and moves inputs there.
+    - If to_cpu=True: moves each batch of features and labels to CPU before storing,
+      minimizing peak GPU memory (recommended for large/full-data caching).
+    """
+    # Infer model device robustly
+    try:
+        params = list(clip_model.parameters())
+        device = params[0].device if len(params) > 0 else (torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
+    except Exception:
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
     x_before_list, labels = [], []
 
     with torch.no_grad():
-        for j, (images, target) in enumerate(loader):
-            images, target = images.cuda(), target.cuda()
+        for images, target in loader:
+            images = images.to(device, non_blocking=True)
             x_before_proj = clip_model.encode_image(images)
-            x_before_list.append(x_before_proj)
-            labels.append(target)
+            if to_cpu:
+                x_before_list.append(x_before_proj.detach().to('cpu'))
+                labels.append(target.detach().to('cpu'))
+            else:
+                x_before_list.append(x_before_proj)
+                labels.append(target.to(device, non_blocking=True))
 
-    x_before_proj, labels = torch.cat(x_before_list), torch.cat(labels)
+    x_before_proj = torch.cat(x_before_list, dim=0)
+    labels = torch.cat(labels, dim=0)
 
     return x_before_proj, labels
 

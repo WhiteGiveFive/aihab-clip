@@ -35,10 +35,16 @@ Current Status
   - CLIP init + CS text head build (step 1):
     - Loads CLIP via local clip.load(backbone) → returns (state_dict, clip_model, preprocess).
     - Builds text classifier from CS_TEMPLATES × CS_CLASSNAMES via utils.clip_classifier.
+    - Inspection moved: all CLIP/text-head prints happen inside inspect() (not init), after the model is built.
     - Prints: backbone, device, inferred visual resolution, clip_cache_root, expected_model_path, file existence.
     - Prints text head summary: num_classes, num_templates, text_weights_before.shape, text_weights.shape, dtype/device, and sample prompts.
-    - Note: clip_classifier now respects model device (CPU/GPU) and no longer assumes CUDA.
-  - Ready to add next: feature saving (aug_views), projector training/eval, config toggles for saving/training.
+    - Note: clip_classifier respects model device (CPU/GPU), no hard CUDA assumption.
+  - Feature caching (step 2): IMPLEMENTED
+    - cache_preprojection_features in main.py saves pre-projection image features and labels.
+    - Uses methods/utils.compute_image_features(model, loader, to_cpu=True) which is now device-agnostic and streams batch outputs to CPU to avoid GPU OOM.
+    - Saves per view to: <root>/features_<Backbone>_cs/<shots>_shot/seed<seed>/f{v}.pth and label.pth once.
+    - Prints per-view shapes/dtypes and validates by reloading each saved file, checking shapes and counts vs expected train size.
+  - Ready to add next: projector training/eval wiring (step 3).
 
 Few-Shot Mechanics (important mental model)
 - Selection is done ONCE per run/seed, not per epoch.
@@ -92,11 +98,11 @@ Next Steps Checklist (what to implement next in main.py)
 1) CLIP Init + Text Head — COMPLETED
    - Loads CLIP and prints cache info; builds CS text head with prompt ensemble and prints shapes/dtypes.
 
-2) Feature Saving Loop
-   - If cfg.save_features: True → for v in range(aug_views):
-       - Iterate train loader once, call clip_model.encode_image(imgs), collect x_before_proj (pre-projection features) + labels.
-       - Save to: <root_path>/features_<Backbone>_cs/<shots>_shot/seed<seed>/f{v}.pth and label.pth (labels saved once when v==0).
-       - Print: save paths and tensor shapes.
+2) Feature Saving Loop — COMPLETED
+   - cfg.save_features: True → for v in range(aug_views):
+     - Iterate train loader once, collect x_before_proj + labels via device-agnostic compute_image_features(..., to_cpu=True).
+     - Save to: <root>/features_<Backbone>_cs/<shots>_shot/seed<seed>/f{v}.pth and label.pth (once).
+     - Print: save paths, tensor shapes/dtypes, and reload validation flags.
 
 3) Projector Training + Eval (wire methods/ProLIP.ProLIP)
    - Load cached features + labels for aug_views.
@@ -115,19 +121,29 @@ Validation & Debugging Tips
 - Seeds: shots and selection are seed-dependent; set seed in configs or via --opts.
 - Sanity checks: inspection prints selection_by_class in few-shot; confirms transform stacks and batch shapes.
 - Label names: Derived from data/__init__.py’s REASSIGN_LABEL_NAME_L3 mapping; ensure order matches class ids.
+- Feature caching: compute_image_features(to_cpu=True) streams results to CPU; saved tensors are CPU, avoiding GPU OOM.
 
 Potential Pitfalls
 - Config paths: run from aihab-clip or pass correct relative paths.
 - --opts: make sure it’s last; only KEY VALUE pairs.
 - CLIP normalization: ensure CLIP mean/std applied; mismatched normalization will hurt performance.
 - Backbone resolution: keep resolution consistent with the CLIP backbone you load (224 is correct for RN50/ViT-B/16).
+- Disk space: per view size ≈ N×Dpre×bytes. For N≈5k: RN50 fp16 ~10MB/view; ViT-B fp16 ~7.7MB/view. Multiply by aug_views.
 
 Quick Commands Cheat Sheet
 - Full-data inspect:
   - python main.py --inspect_only --base_config configs/base.yaml --dataset_config configs/cs.yaml
 - Few-shot inspect (4-shot):
   - python main.py --inspect_only --base_config configs/base.yaml --dataset_config configs/cs.yaml --opts shots 4 seed 1
-- (After feature saving added) Example:
+- Full-data feature cache (1 view):
+  - python main.py --base_config configs/base.yaml --dataset_config configs/cs.yaml --opts shots 0 save_features True aug_views 1 seed 1
+- Few-shot feature cache (e.g., 4-shot, many views):
   - python main.py --base_config configs/base.yaml --dataset_config configs/cs.yaml --opts shots 4 seed 1 save_features True aug_views 300
 - (After training added) Example:
   - python main.py --base_config configs/base.yaml --dataset_config configs/cs.yaml --opts shots 4 seed 1 train_epoch 300 lr_v 1e-5 lambda_funct_1_N True
+
+Implementation Notes (2025-09-02)
+- Refactor: moved CLIP/text-head inspection prints from init_clip_and_text_head() into inspect(), called after model build for a single consolidated view.
+- Feature caching: added cache_preprojection_features(). Uses device-agnostic compute_image_features(..., to_cpu=True) to stream batches to CPU and save CPU tensors per view; prints shapes and validates by reloading.
+- Device-agnostic utils: methods/utils.compute_image_features now infers model device; supports to_cpu flag; retains internal torch.no_grad().
+- Simplified no_grad: removed redundant no_grad around caching loop in main (compute_image_features already uses no_grad).
