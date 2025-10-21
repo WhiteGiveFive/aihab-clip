@@ -348,8 +348,6 @@ def cache_preprojection_features(cfg, clip_bundle: dict, dl_tr: DataLoader, info
         })
 
     print("\nFeature caching complete.")
-    if last_n is not None and expected_n is not None and last_n != expected_n:
-        print(f"WARNING: cached rows ({last_n}) != expected_train_size ({expected_n})")
 
 
 def parse_args():

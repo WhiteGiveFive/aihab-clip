@@ -1,3 +1,11 @@
+"""
+Utilities originally derived from Astra Vision's ProLIP repository
+(https://github.com/astra-vision/ProLIP, methods/utils.py). This fork keeps
+the projector-related helpers intact, but extends `compute_image_features`
+to (1) infer the CLIP model's execution device and (2) optionally stream
+features/labels back to CPU (`to_cpu=True`) for feature caching.
+"""
+
 import torch
 import numpy as np
 import torch.nn.functional as F
