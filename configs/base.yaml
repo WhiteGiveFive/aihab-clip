@@ -3,6 +3,14 @@ root_path: './'            # base path for feature caches and outputs
 dataset: 'cs'              # custom CS dataset identifier
 output_dir: './results'
 
+# ------ Projector training switches ------
+projector:
+  enabled: False               # set True to run ProLIP training/eval
+  eval_only: False             # skip training, only evaluate projector
+  checkpoint: null             # optional path to saved projector weights
+  output_dir: './results'      # where to write ProLIP outputs/checkpoints
+  require_cached_features: True  # ensure feature cache exists before training
+
 # ------ CLIP / Model settings ------
 backbone: 'ViT-B/16'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
 resolution: 224            # enforced input size for CLIP visual encoder
