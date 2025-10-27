@@ -20,7 +20,5 @@ data:
 # Default to full-data for initial inspection
 shots: 0
 seed: 1
-backbone: 'RN50'
 resolution: 224
 aug_views: 1
-

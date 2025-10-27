@@ -166,6 +166,15 @@ def init_clip_and_text_head(cfg):
 
     Returns a dict with: state_dict, clip_model, preprocess, texts,
     text_weights_before, text_weights.
+
+    - ``texts``: tokenized prompts (first template per class) kept for
+      inspection or reuse when debugging prompt design.
+    - ``text_weights_before``: raw text embeddings produced before CLIP's
+      projection layer, stacked as ``[num_templates, num_classes, dim]`` for
+      optional downstream analysis.
+    - ``text_weights``: normalized classifier weights obtained by averaging
+      per-template embeddings, shaped ``[dim, num_classes]`` and ready for
+      cosine-similarity classification.
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
     backbone = cfg.get('backbone', 'RN50')

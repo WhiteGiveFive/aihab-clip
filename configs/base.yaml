@@ -4,7 +4,7 @@ dataset: 'cs'              # custom CS dataset identifier
 output_dir: './results'
 
 # ------ CLIP / Model settings ------
-backbone: 'RN50'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
+backbone: 'ViT-B/16'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
 resolution: 224            # enforced input size for CLIP visual encoder
 SUBSAMPLE_CLASSES: 'all'
 
