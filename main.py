@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
+from sklearn.model_selection import StratifiedGroupKFold
 
 from utils import load_cfg_from_cfg_file, merge_cfg_from_list
 from utils import clip_classifier
@@ -72,7 +73,26 @@ def derive_test_paths(train_paths: List[str]) -> List[str]:
     return [p.replace('_train', '_test') for p in train_paths]
 
 
-def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, object, object, dict]:
+def _stratified_group_split_indices(labels: np.ndarray,
+                                   groups: np.ndarray,
+                                   val_ratio: float,
+                                   seed: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    StratifiedGroup split: preserve class balance while keeping grouped samples together
+    (here, group = plot_idx). Uses StratifiedGroupKFold to approximate the requested split.
+    """
+    labels = np.asarray(labels)
+    groups = np.asarray(groups)
+    if val_ratio <= 0:
+        return np.arange(len(labels), dtype=np.int64), np.array([], dtype=np.int64)
+
+    n_splits = max(2, int(round(1.0 / val_ratio)))
+    sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    train_idx, val_idx = next(sgkf.split(labels, labels, groups=groups))
+    return train_idx.astype(np.int64), val_idx.astype(np.int64)
+
+
+def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, DataLoader, object, object, dict]:
     # Build CLIP-friendly transforms honoring aihab aug flags
     train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=cfg['resolution'])
     test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=cfg['resolution'])
@@ -89,19 +109,24 @@ def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, object, object, dict]:
     # Select indices
     seed = int(cfg.get('seed', 1))
     rng = np.random.RandomState(seed)
+    val_ratio = float(cfg.get('val_split', 0.1))
+
+    train_pool_idx, val_idx = _stratified_group_split_indices(labels_tr, plot_idx_tr, val_ratio, seed)
 
     shots_val = int(cfg.get('shots', 0)) if cfg.get('shots', 0) is not None else 0
     if shots_val > 0:
-        # Few-shot on train
-        sel_tr = few_shot_indices(labels_tr, shots_val, rng)
+        # Few-shot selection within the training pool (validation drawn from full data before this step)
+        rel_sel = few_shot_indices(labels_tr[train_pool_idx], shots_val, rng)
+        sel_tr = train_pool_idx[rel_sel]
     else:
-        # Full-data
-        sel_tr = np.arange(images_tr.shape[0])
+        # Full-data train pool (minus validation)
+        sel_tr = train_pool_idx
 
     sel_te = np.arange(images_te.shape[0])
 
     # Build datasets and loaders
     ds_tr = CSArrayDataset(images_tr, labels_tr, file_names_tr, sel_tr, transform=train_tf)
+    ds_val = CSArrayDataset(images_tr, labels_tr, file_names_tr, val_idx, transform=test_tf)
     ds_te = CSArrayDataset(images_te, labels_te, file_names_te, sel_te, transform=test_tf)
 
     dl_tr = DataLoader(ds_tr,
@@ -109,6 +134,11 @@ def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, object, object, dict]:
                        shuffle=cfg['data']['shuffle'],
                        num_workers=cfg['data']['num_workers'],
                        pin_memory=True)
+    dl_val = DataLoader(ds_val,
+                        batch_size=cfg['data']['batch_size'],
+                        shuffle=False,
+                        num_workers=cfg['data']['num_workers'],
+                        pin_memory=True)
     dl_te = DataLoader(ds_te,
                        batch_size=cfg['data']['batch_size'],
                        shuffle=False,
@@ -129,10 +159,13 @@ def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, object, object, dict]:
         'shots': shots_val,
         'train_size': int(len(sel_tr)),
         'train_batches': int(len(dl_tr)),
+        'val_size': int(len(val_idx)),
+        'val_batches': int(len(dl_val)),
+        'val_split': val_ratio,
         'selection_by_class': selection_by_class,
     }
 
-    return dl_tr, dl_te, train_tf, test_tf, info
+    return dl_tr, dl_val, dl_te, train_tf, test_tf, info
 
 
 def _default_clip_cache_root() -> str:
@@ -200,7 +233,7 @@ def init_clip_and_text_head(cfg):
     }
 
 
-def inspect(cfg, train_tf, test_tf, dl_tr, dl_te, info: dict, clip_bundle: Optional[dict] = None, max_show: int = 4):
+def inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info: dict, clip_bundle: Optional[dict] = None, max_show: int = 4):
     # Print configs
     print("\n==== Loaded Config ====")
     print(cfg)
@@ -223,6 +256,7 @@ def inspect(cfg, train_tf, test_tf, dl_tr, dl_te, info: dict, clip_bundle: Optio
     # Dataloader size and few-shot selection details
     print("\n==== Train Loader Size ====")
     print(f"dataset size: {len(dl_tr.dataset)}  num_batches: {len(dl_tr)}")
+    print(f"validation size: {len(dl_val.dataset)}  num_batches: {len(dl_val)}")
     if info.get('is_few_shot'):
         shots = info.get('shots')
         print(f"few-shot mode: {shots} per class")
@@ -401,13 +435,13 @@ def main():
     cfg = load_configs(args)
     set_seed(int(cfg.get('seed', 1)))
 
-    dl_tr, dl_te, train_tf, test_tf, info = build_loaders(cfg)
+    dl_tr, dl_val, dl_te, train_tf, test_tf, info = build_loaders(cfg)
 
     # Step 1: CLIP init + CS text head
     clip_bundle = init_clip_and_text_head(cfg)
 
     # Inspect everything including CLIP/text head
-    inspect(cfg, train_tf, test_tf, dl_tr, dl_te, info, clip_bundle)
+    inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info, clip_bundle)
 
     if not args.inspect_only:
         if bool(cfg.get('save_features', False)):
