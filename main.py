@@ -18,6 +18,7 @@ from data.clip_transforms import build_clip_transforms, CLIP_MEAN, CLIP_STD
 from data.templates import CS_TEMPLATES, CS_CLASSNAMES
 from data import REASSIGN_LABEL_NAME_L3
 from methods.utils import compute_image_features
+from methods.ProLIP import ProLIP
 
 
 def set_seed(seed: int):
@@ -109,9 +110,11 @@ def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, DataLoader, object, obje
     # Select indices
     seed = int(cfg.get('seed', 1))
     rng = np.random.RandomState(seed)
-    val_ratio = float(cfg.get('val_split', 0.1))
+    val_cfg = cfg.get('data', {}).get('data_split', {})
+    val_ratio = float(val_cfg.get('valid_split', 0.1))
+    val_seed = int(val_cfg.get('split_seed', seed))
 
-    train_pool_idx, val_idx = _stratified_group_split_indices(labels_tr, plot_idx_tr, val_ratio, seed)
+    train_pool_idx, val_idx = _stratified_group_split_indices(labels_tr, plot_idx_tr, val_ratio, val_seed)
 
     shots_val = int(cfg.get('shots', 0)) if cfg.get('shots', 0) is not None else 0
     if shots_val > 0:
@@ -393,6 +396,17 @@ def cache_preprojection_features(cfg, clip_bundle: dict, dl_tr: DataLoader, info
     print("\nFeature caching complete.")
 
 
+def _feature_cache_exists(cache_dir: Path, aug_views: int) -> bool:
+    if not cache_dir.exists():
+        return False
+    if not (cache_dir / "label.pth").is_file():
+        return False
+    for v in range(aug_views):
+        if not (cache_dir / f"f{v}.pth").is_file():
+            return False
+    return True
+
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--base_config', type=str, default='configs/base.yaml')
@@ -444,10 +458,55 @@ def main():
     inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info, clip_bundle)
 
     if not args.inspect_only:
+        # Optionally cache features
         if bool(cfg.get('save_features', False)):
             cache_preprojection_features(cfg, clip_bundle, dl_tr, info)
+        # Projector training/eval
+        if cfg.get('projector', {}).get('enabled', False):
+            cache_dir = _feature_cache_dir(cfg)
+            aug_views = int(cfg.get('aug_views', 1) or 1)
+            if not _feature_cache_exists(cache_dir, aug_views):
+                if cfg.get('projector', {}).get('require_cached_features', True):
+                    raise FileNotFoundError(f"Cached features not found in {cache_dir}; run with save_features=True first.")
+                else:
+                    print(f"[warn] Cached features missing in {cache_dir}; generating now.")
+                    cache_preprojection_features(cfg, clip_bundle, dl_tr, info)
+
+            prolip = ProLIP(cfg)
+
+            # Unpack clip/text bundles
+            state_dict = clip_bundle['state_dict']
+            clip_model = clip_bundle['clip_model']
+            text_weights = clip_bundle['text_weights']
+            text_weights_before = clip_bundle['text_weights_before']
+
+            # For non-ImageNet datasets, reuse primary text weights for all placeholders
+            res = prolip.forward(
+                train_loader=dl_tr,
+                val_loader=dl_val,
+                test_loader=dl_te,
+                test_loader_v2=None,
+                test_loader_sketch=None,
+                test_loader_a=None,
+                test_loader_r=None,
+                text_weights=text_weights,
+                text_weights_a=None,
+                text_weights_r=None,
+                text_weights_before=text_weights_before,
+                model=clip_model,
+                state_dict=state_dict,
+                classnames=CS_CLASSNAMES,
+                task=int(cfg.get('seed', 1)),
+                shots=int(cfg.get('shots', 0) or 0),
+                config_file=Path(args.dataset_config).stem,
+                test_config_path=str(args.dataset_config),
+            )
+            print("\n==== ProLIP results ====")
+            print(res)
         else:
-            print("\nNext steps: feature saving is disabled (set save_features: True). ProLIP training will be added.")
+            print("\nProjector training disabled (projector.enabled=False).")
+    else:
+        print("\nInspection-only run; skipping caching and ProLIP.")
 
 
 if __name__ == '__main__':

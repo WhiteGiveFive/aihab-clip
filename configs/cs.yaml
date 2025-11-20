@@ -5,9 +5,14 @@ data:
     - './data/CS_Xplots_2019_2023_train'
   index_file_names:
     - 'CS_Xplots_2019_23_NEW02OCT24.csv'
+  metadata: False
   batch_size: 16
   shuffle: True
   num_workers: 0
+  data_split:
+    valid_split: 0.1
+    split_seed: 42
+  use_l2_label: False
   preprocessing:
     resize: 439
     augmentations:

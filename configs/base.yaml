@@ -32,27 +32,6 @@ aug_views: 1               # number of augmentation views to cache (use 300 for 
 batch_size: 16             # batch size used for feature saving
 shuffle: True
 
-# ------ Data settings for CS ------
-data:
-  dataset_paths: []        # List of train image folder paths
-  index_file_names: []     # List of CSV label files (parallel to dataset_paths)
-  metadata: False
-  batch_size: 16
-  shuffle: True
-  num_workers: 0
-  data_split:
-    valid_split: 0.2
-    split_seed: 42
-  use_l2_label: False
-  preprocessing:
-    resize: 439            # OpenCV resize used during bulk loading to reduce memory
-    augmentations:
-      crop: ratio          # ratio -> int(resize*0.875), or use an int
-      bottom_crop: False
-      random_crop: True
-      flip: False
-      rotation: True
-
 # ------ Training mode (loader control) ------
 shots: 0                   # 0 (or <1) -> full-data; N>0 -> few-shot per class
 seed: 1
