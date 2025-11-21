@@ -10,6 +10,7 @@ projector:
   checkpoint: null             # optional path to saved projector weights
   output_dir: './results'      # where to write ProLIP outputs/checkpoints, not used at this moment.
   require_cached_features: True  # ensure feature cache exists before training
+wandb_project: 'aihab-clip'
 
 # ------ CLIP / Model settings ------
 backbone: 'ViT-B/32'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
@@ -17,12 +18,12 @@ SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
 method: 'ProLIP'
-train_epoch: 3           # projector training epochs (few-shot can use 300)
+train_epoch: 1           # projector training epochs (few-shot can use 300)
 lr_v: 0.00001              # projector learning rate
 lambda_v: 0.1              # fallback regularization strength
 lambda_funct_1_N: False     # if True, lambda = 1/N (shots), make it False when shots = 0!
 lambda_funct_1_N2: False   # alternative lambda = 1/N^2, make it False when shots = 0!
-search_lr: False           # disable grid-search by default
+search_lr: True           # disable grid-search by default
 feat_batch_size: 64         # 0 = full-batch (few-shot); >0 enables chunking for full-data
 save_checkpoints: False
 

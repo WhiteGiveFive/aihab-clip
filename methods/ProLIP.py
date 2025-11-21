@@ -145,8 +145,7 @@ class ProLIP(FSCLIPmethod):
             else:
                 lambda_v = cfg['lambda_v']
 
-        print(lr_v)
-        print(lambda_v)
+        print(f"Search completed ===> lr: {lr_v}, lambda: {lambda_v}")
 
         if cfg['search_lr']:
             save_path = Path("results_lr") / config_file / f"{cfg['dataset']}{shots}_shot_lr.txt"

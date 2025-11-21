@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 from sklearn.model_selection import StratifiedGroupKFold
+import wandb  
 
 from utils import load_cfg_from_cfg_file, merge_cfg_from_list
 from utils import clip_classifier
@@ -449,6 +450,22 @@ def main():
     args = parse_args()
     cfg = load_configs(args)
     set_seed(int(cfg.get('seed', 1)))
+    # Initialize WandB if available and requested
+    wandb_run = None
+    use_wandb = cfg.get('projector', {}).get('enabled', False) and cfg.get('wandb_project', None)
+    if use_wandb:
+        run_name = (
+            f"{cfg.get('dataset', 'ds')}_"
+            f"shots{cfg.get('shots', 0)}_"
+            f"seed{cfg.get('seed', 1)}_"
+            f"{cfg.get('backbone', 'clip')}_"
+            f"{cfg.get('train_epoch', 0)}eps_proj"
+        )
+        wandb_run = wandb.init(
+            project=cfg.get('wandb_project'),
+            name=run_name,
+            config=cfg,
+        )
 
     dl_tr, dl_val, dl_te, train_tf, test_tf, info = build_loaders(cfg)
 
@@ -502,11 +519,15 @@ def main():
                             test_config_path=str(args.dataset_config))
             print("\n==== ProLIP results ====")
             print(f"Loss: {loss}, Accuracy: {acc}")
+            if wandb_run is not None:
+                wandb_run.log({'acc': float(acc) if hasattr(acc, 'item') else acc})
         else:
             print("\nProjector training disabled (projector.enabled=False).")
     else:
         print("\nInspection-only run; skipping caching and ProLIP.")
 
+    if wandb_run is not None:
+        wandb_run.finish()
 
 if __name__ == '__main__':
     main()
