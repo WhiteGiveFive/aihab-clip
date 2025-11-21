@@ -95,8 +95,9 @@ def _stratified_group_split_indices(labels: np.ndarray,
 
 def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, DataLoader, object, object, dict]:
     # Build CLIP-friendly transforms honoring aihab aug flags
-    train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=cfg['resolution'])
-    test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=cfg['resolution'])
+    resolution = cfg['data']['preprocessing']['resolution']
+    train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=resolution)
+    test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=resolution)
 
     # Bulk load train split
     images_tr, labels_tr, plot_word_labels_tr, poly_labels_tr, poly_word_labels_tr, file_names_tr, plot_idx_tr, src_tr = \
@@ -383,7 +384,7 @@ def cache_preprojection_features(cfg, clip_bundle: dict, dl_tr: DataLoader, info
             })
 
         # Reload validation (shape check)
-        loaded = torch.load(fpath, map_location='cpu')
+        loaded = torch.load(fpath, map_location='cpu', weights_only=True)
         ok_shape = tuple(loaded.shape) == tuple(feats_t.shape)
         ok_count = feats_t.shape[0] == labels_t.shape[0]
         warn_expected = (expected_n is not None) and (feats_t.shape[0] != expected_n)
@@ -481,28 +482,26 @@ def main():
             text_weights_before = clip_bundle['text_weights_before']
 
             # For non-ImageNet datasets, reuse primary text weights for all placeholders
-            res = prolip.forward(
-                train_loader=dl_tr,
-                val_loader=dl_val,
-                test_loader=dl_te,
-                test_loader_v2=None,
-                test_loader_sketch=None,
-                test_loader_a=None,
-                test_loader_r=None,
-                text_weights=text_weights,
-                text_weights_a=None,
-                text_weights_r=None,
-                text_weights_before=text_weights_before,
-                model=clip_model,
-                state_dict=state_dict,
-                classnames=CS_CLASSNAMES,
-                task=int(cfg.get('seed', 1)),
-                shots=int(cfg.get('shots', 0) or 0),
-                config_file=Path(args.dataset_config).stem,
-                test_config_path=str(args.dataset_config),
-            )
+            loss, acc = prolip(train_loader=dl_tr,
+                            val_loader=dl_val,
+                            test_loader=dl_te,
+                            test_loader_v2=None,
+                            test_loader_sketch=None,
+                            test_loader_a=None,
+                            test_loader_r=None,
+                            text_weights=text_weights,
+                            text_weights_a=None,
+                            text_weights_r=None,
+                            text_weights_before=text_weights_before,
+                            model=clip_model,
+                            state_dict=state_dict,
+                            classnames=CS_CLASSNAMES,
+                            task=int(cfg.get('seed', 1)),
+                            shots=int(cfg.get('shots', 0) or 0),
+                            config_file=Path(args.dataset_config).stem,
+                            test_config_path=str(args.dataset_config))
             print("\n==== ProLIP results ====")
-            print(res)
+            print(f"Loss: {loss}, Accuracy: {acc}")
         else:
             print("\nProjector training disabled (projector.enabled=False).")
     else:

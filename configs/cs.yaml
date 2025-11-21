@@ -6,7 +6,7 @@ data:
   index_file_names:
     - 'CS_Xplots_2019_23_NEW02OCT24.csv'
   metadata: False
-  batch_size: 16
+  batch_size: 16 # batch size used for feature caching. 
   shuffle: True
   num_workers: 0
   data_split:
@@ -15,15 +15,10 @@ data:
   use_l2_label: False
   preprocessing:
     resize: 439
+    resolution: 224        # final crop/resize size for CLIP inputs
     augmentations:
       crop: ratio
       bottom_crop: False
       random_crop: True
       flip: False
       rotation: True
-
-# Default to full-data for initial inspection
-shots: 0
-seed: 1
-resolution: 224
-aug_views: 1

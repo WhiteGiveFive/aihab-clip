@@ -5,30 +5,30 @@ output_dir: './results'
 
 # ------ Projector training switches ------
 projector:
-  enabled: False               # set True to run ProLIP training/eval
+  enabled: True               # set True to run ProLIP training/eval
   eval_only: False             # skip training, only evaluate projector
   checkpoint: null             # optional path to saved projector weights
-  output_dir: './results'      # where to write ProLIP outputs/checkpoints
+  output_dir: './results'      # where to write ProLIP outputs/checkpoints, not used at this moment.
   require_cached_features: True  # ensure feature cache exists before training
 
 # ------ CLIP / Model settings ------
-backbone: 'ViT-B/16'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
-resolution: 224            # enforced input size for CLIP visual encoder
+backbone: 'ViT-B/32'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
 SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
 method: 'ProLIP'
-train_epoch: 100           # projector training epochs (few-shot can use 300)
+train_epoch: 3           # projector training epochs (few-shot can use 300)
 lr_v: 0.00001              # projector learning rate
 lambda_v: 0.1              # fallback regularization strength
-lambda_funct_1_N: True     # if True, lambda = 1/N (shots)
-lambda_funct_1_N2: False   # alternative lambda = 1/N^2
+lambda_funct_1_N: False     # if True, lambda = 1/N (shots), make it False when shots = 0!
+lambda_funct_1_N2: False   # alternative lambda = 1/N^2, make it False when shots = 0!
 search_lr: False           # disable grid-search by default
-feat_batch_size: 0         # 0 = full-batch (few-shot); >0 enables chunking for full-data
+feat_batch_size: 64         # 0 = full-batch (few-shot); >0 enables chunking for full-data
+save_checkpoints: False
 
 # ------ Feature caching ------
 save_features: False       # set True to precompute and cache pre-projection features
-aug_views: 1               # number of augmentation views to cache (use 300 for few-shot)
+aug_views: 3               # number of augmentation views to cache (use 300 for few-shot)
 batch_size: 16             # batch size used for feature saving
 shuffle: True
 
