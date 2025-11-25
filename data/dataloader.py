@@ -2,13 +2,17 @@ from .dataset import convert_to_coarse_label, image_loader, data_partition, HABD
 import torch
 from torchvision import transforms
 from torchvision.transforms import v2
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader, Subset
 import timm
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 from .data_utils import BottomSquareCrop, SupConTwoViewTransform, TwoViewTransform, canny_preprocessing
 import os
+from typing import List, Tuple
+from sklearn.model_selection import StratifiedGroupKFold
+from PIL import Image
+from data.clip_transforms import build_clip_transforms
 
 
 def _data_preprocessing(args: dict, is_train: bool):
@@ -318,3 +322,146 @@ def efficiently_get_dataloaders_obliterate(args: dict):
 
     print('================Dataloaders are created.=================')
     return trainloader, valloader
+
+def few_shot_indices(labels: np.ndarray, shots: int, rng: np.random.RandomState) -> np.ndarray:
+    """Sample N=shots examples per class, with replacement if class has < shots. Helper function for the aihab-clip project."""
+    labels = np.asarray(labels)
+    classes = np.unique(labels)
+    sel = []
+    for c in classes:
+        idx_c = np.where(labels == c)[0]
+        if len(idx_c) >= shots:
+            sel.extend(rng.choice(idx_c, size=shots, replace=False).tolist())
+        else:
+            sel.extend(rng.choice(idx_c, size=shots, replace=True).tolist())
+    return np.array(sel, dtype=np.int64)
+
+def derive_test_paths(train_paths: List[str]) -> List[str]:
+    """Helper function for the aihab-clip project."""
+    return [p.replace('_train', '_test') for p in train_paths]
+
+def _stratified_group_split_indices(labels: np.ndarray,
+                                   groups: np.ndarray,
+                                   val_ratio: float,
+                                   seed: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Helper function for the aihab-clip project.
+    StratifiedGroup split: preserve class balance while keeping grouped samples together
+    (here, group = plot_idx). Uses StratifiedGroupKFold to approximate the requested split.
+    """
+    labels = np.asarray(labels)
+    groups = np.asarray(groups)
+    if val_ratio <= 0:
+        return np.arange(len(labels), dtype=np.int64), np.array([], dtype=np.int64)
+
+    n_splits = max(2, int(round(1.0 / val_ratio)))
+    sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    train_idx, val_idx = next(sgkf.split(labels, labels, groups=groups))
+    return train_idx.astype(np.int64), val_idx.astype(np.int64)
+
+class CSArrayDataset(Dataset):
+    """
+    Helper function for the aihab-clip project.
+    Simple Dataset wrapper over preloaded arrays from image_loader.
+    Returns (image, label) pairs suitable for CLIP feature extraction.
+    Optionally keeps file_names for inspection.
+    """
+    def __init__(self,
+                 images: np.ndarray,
+                 labels: np.ndarray,
+                 file_names: List[str],
+                 selected_idx: np.ndarray,
+                 transform):
+        self.images = images[selected_idx]
+        self.labels = labels[selected_idx]
+        self.file_names = [file_names[i] for i in selected_idx]
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        img = Image.fromarray(self.images[idx])
+        lbl = int(self.labels[idx])
+        if self.transform is not None:
+            img = self.transform(img)
+        return img, lbl
+
+def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, DataLoader, object, object, dict]:
+    """Helper function for the aihab-clip project."""
+    # Build CLIP-friendly transforms honoring aihab aug flags
+    resolution = cfg['data']['preprocessing']['resolution']
+    train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=resolution)
+    test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=resolution)
+
+    # Bulk load train split
+    images_tr, labels_tr, plot_word_labels_tr, poly_labels_tr, poly_word_labels_tr, file_names_tr, plot_idx_tr, src_tr = \
+        image_loader(cfg['data']['dataset_paths'], cfg['data']['index_file_names'], cfg['data']['preprocessing'].get('resize', 256), verbose=True)
+
+    # Bulk load test split (derive _test folder)
+    test_paths = derive_test_paths(cfg['data']['dataset_paths'])
+    images_te, labels_te, plot_word_labels_te, poly_labels_te, poly_word_labels_te, file_names_te, plot_idx_te, src_te = \
+        image_loader(test_paths, cfg['data']['index_file_names'], cfg['data']['preprocessing'].get('resize', 256), verbose=True)
+
+    # Select indices
+    seed = int(cfg.get('seed', 1))
+    rng = np.random.RandomState(seed)
+    val_cfg = cfg.get('data', {}).get('data_split', {})
+    val_ratio = float(val_cfg.get('valid_split', 0.1))
+    val_seed = int(val_cfg.get('split_seed', seed))
+
+    train_pool_idx, val_idx = _stratified_group_split_indices(labels_tr, plot_idx_tr, val_ratio, val_seed)
+
+    shots_val = int(cfg.get('shots', 0)) if cfg.get('shots', 0) is not None else 0
+    if shots_val > 0:
+        # Few-shot selection within the training pool (validation drawn from full data before this step)
+        rel_sel = few_shot_indices(labels_tr[train_pool_idx], shots_val, rng)
+        sel_tr = train_pool_idx[rel_sel]
+    else:
+        # Full-data train pool (minus validation)
+        sel_tr = train_pool_idx
+
+    sel_te = np.arange(images_te.shape[0])
+
+    # Build datasets and loaders
+    ds_tr = CSArrayDataset(images_tr, labels_tr, file_names_tr, sel_tr, transform=train_tf)
+    ds_val = CSArrayDataset(images_tr, labels_tr, file_names_tr, val_idx, transform=test_tf)
+    ds_te = CSArrayDataset(images_te, labels_te, file_names_te, sel_te, transform=test_tf)
+
+    dl_tr = DataLoader(ds_tr,
+                       batch_size=cfg['data']['batch_size'],
+                       shuffle=cfg['data']['shuffle'],
+                       num_workers=cfg['data']['num_workers'],
+                       pin_memory=True)
+    dl_val = DataLoader(ds_val,
+                        batch_size=cfg['data']['batch_size'],
+                        shuffle=False,
+                        num_workers=cfg['data']['num_workers'],
+                        pin_memory=True)
+    dl_te = DataLoader(ds_te,
+                       batch_size=cfg['data']['batch_size'],
+                       shuffle=False,
+                       num_workers=cfg['data']['num_workers'],
+                       pin_memory=True)
+
+    # Few-shot selection map for inspection
+    selection_by_class = None
+    if shots_val > 0:
+        selection_by_class = {}
+        classes = np.unique(labels_tr)
+        for c in classes:
+            idx_c = sel_tr[labels_tr[sel_tr] == c]
+            selection_by_class[int(c)] = idx_c.tolist()
+
+    info = {
+        'is_few_shot': shots_val > 0,
+        'shots': shots_val,
+        'train_size': int(len(sel_tr)),
+        'train_batches': int(len(dl_tr)),
+        'val_size': int(len(val_idx)),
+        'val_batches': int(len(dl_val)),
+        'val_split': val_ratio,
+        'selection_by_class': selection_by_class,
+    }
+
+    return dl_tr, dl_val, dl_te, train_tf, test_tf, info
