@@ -13,12 +13,16 @@ projector:
 wandb_project: 'aihab-clip'
 
 # ------ CLIP / Model settings ------
-backbone: 'ViT-B/32'           # RN50 | RN101 | ViT-B/16 | ViT-B/32
+clip_backend: 'openai'         # openai | openclip
+backbone: 'ViT-B/32'           # RN50 | RN101 | ViT-B/16 | ViT-B/32 (OpenAI CLIP names)
+open_clip_model: 'ViT-B-16'    # OpenCLIP model name (used when clip_backend=openclip)
+open_clip_pretrained: 'openai' # OpenCLIP pretrained tag (e.g., laion2b_s34b_b79k)
+open_clip_cache_dir: null      # optional path override for OpenCLIP checkpoints
 SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
 method: 'ProLIP'
-train_epoch: 1           # projector training epochs (few-shot can use 300)
+train_epoch: 10           # projector training epochs (few-shot can use 300)
 lr_v: 0.00001              # projector learning rate
 lambda_v: 0.1              # fallback regularization strength
 lambda_funct_1_N: False     # if True, lambda = 1/N (shots), make it False when shots = 0!
@@ -29,7 +33,7 @@ save_checkpoints: False
 
 # ------ Feature caching ------
 save_features: False       # set True to precompute and cache pre-projection features
-aug_views: 3               # number of augmentation views to cache (use 300 for few-shot)
+aug_views: 1               # number of augmentation views to cache (use 300 for few-shot)
 batch_size: 16             # batch size used for feature saving
 shuffle: True
 
