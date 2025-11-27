@@ -387,12 +387,18 @@ class CSArrayDataset(Dataset):
             img = self.transform(img)
         return img, lbl
 
-def build_loaders(cfg) -> Tuple[DataLoader, DataLoader, DataLoader, object, object, dict]:
+def build_loaders(cfg,
+                  train_tf_override=None,
+                  test_tf_override=None) -> Tuple[DataLoader, DataLoader, DataLoader, object, object, dict]:
     """Helper function for the aihab-clip project."""
-    # Build CLIP-friendly transforms honoring aihab aug flags
-    resolution = cfg['data']['preprocessing']['resolution']
-    train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=resolution)
-    test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=resolution)
+    # Build transforms: prefer overrides (e.g., OpenCLIP native preprocess) when provided
+    if train_tf_override is not None and test_tf_override is not None:
+        train_tf = train_tf_override
+        test_tf = test_tf_override
+    else:
+        resolution = cfg['data']['preprocessing']['resolution']
+        train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=resolution)
+        test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=resolution)
 
     # Bulk load train split
     images_tr, labels_tr, plot_word_labels_tr, poly_labels_tr, poly_word_labels_tr, file_names_tr, plot_idx_tr, src_tr = \

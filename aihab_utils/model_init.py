@@ -13,6 +13,10 @@ def _default_clip_cache_root() -> str:
     # Mirror clip.load default
     return os.path.expanduser("~/.cache/clip")
 
+def _default_openclip_cache_root() -> str:
+    # open_clip uses huggingface hub cache by default
+    return os.path.expanduser("~/.cache/huggingface/hub")
+
 
 def _expected_clip_model_path(backbone: str, download_root: Optional[str]) -> Optional[str]:
     """Best-effort reconstruction of the cache path used by clip.load for a named backbone.
@@ -43,14 +47,15 @@ def _load_openclip(backbone: str,
 
     Returns a bundle matching the OpenAI path:
       {
-        'state_dict', 'clip_model', 'preprocess',
-        'texts', 'text_weights_before', 'text_weights', 'tokenizer'
+        'state_dict', 'clip_model',
+        'preprocess_train', 'preprocess_val',
+        'texts', 'text_weights_before', 'text_weights'
       }
     """
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model, _, preprocess = open_clip.create_model_and_transforms(
+    model, preprocess_train, preprocess_val = open_clip.create_model_and_transforms(
         backbone,
         pretrained=pretrained,
         device=device,
@@ -93,7 +98,8 @@ def _load_openclip(backbone: str,
     return {
         'state_dict': model.state_dict(),
         'clip_model': model,
-        'preprocess': preprocess,
+        'preprocess_train': preprocess_train,
+        'preprocess_val': preprocess_val,
         'texts': first_template_tokens,
         'text_weights_before': text_weights_before,
         'text_weights': text_weights,
@@ -103,8 +109,8 @@ def _load_openclip(backbone: str,
 def init_clip_and_text_head(cfg):
     """Load CLIP (OpenAI or OpenCLIP) and build the CS text classifier.
 
-    Returns a dict with: state_dict, clip_model, preprocess, texts,
-    text_weights_before, text_weights, (and tokenizer for OpenCLIP).
+    Returns a dict with: state_dict, clip_model, preprocess_train,
+    preprocess_val, texts, text_weights_before, text_weights.
     """
     backend = str(cfg.get('clip_backend', 'openai')).lower()
 
@@ -132,7 +138,8 @@ def init_clip_and_text_head(cfg):
         return {
             'state_dict': state_dict,
             'clip_model': clip_model,
-            'preprocess': preprocess,
+            'preprocess_train': preprocess,
+            'preprocess_val': preprocess,
             'texts': texts,
             'text_weights_before': clip_w_before,
             'text_weights': clip_w,
@@ -185,22 +192,20 @@ def inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info: dict, clip_bundl
     # CLIP/Text head inspection (moved from init_clip_and_text_head)
     if clip_bundle is not None:
         clip_model = clip_bundle['clip_model']
-        backbone = cfg.get('backbone', 'RN50')
-        cache_root = cfg.get('clip_cache_dir', None)
+        backend = str(cfg['clip_backend']).lower()
+        backbone = cfg['open_clip_model'] if backend == 'openclip' else cfg['backbone']
+        cache_root = cfg.get('open_clip_cache_dir', None) if backend == 'openclip' else cfg.get('clip_cache_dir', None)
         device = next(clip_model.parameters()).device if any(True for _ in clip_model.parameters()) else ("cuda" if torch.cuda.is_available() else "cpu")
-        expected_path = _expected_clip_model_path(backbone, cache_root)
-        if expected_path is None:
-            expected_path = os.path.join(_default_clip_cache_root(), f"{backbone.replace('/', '-')}.pt")
 
         print("\n==== CLIP Init & Text Head ====")
-        print({
+        info_dict = {
+            'backend': backend,
             'backbone': backbone,
             'device': str(device),
-            'inferred_resolution': getattr(getattr(clip_model, 'visual', None), 'input_resolution', None),
-            'clip_cache_root': cache_root or _default_clip_cache_root(),
-            'expected_model_path': expected_path,
-            'model_file_exists': os.path.isfile(expected_path),
-        })
+            'cache_root': cache_root or (_default_openclip_cache_root() if backend == 'openclip' else _default_clip_cache_root()),
+            'pretrained': cfg.get('open_clip_pretrained', None) if backend == 'openclip' else None,
+        }
+        print(info_dict)
 
         print("\nText head summary:")
         clip_w_before = clip_bundle['text_weights_before']
@@ -208,7 +213,7 @@ def inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info: dict, clip_bundl
         print({
             'num_classes': len(CS_CLASSNAMES),
             'num_templates': len(CS_TEMPLATES),
-            'text_weights_before.shape': tuple(clip_w_before.shape),
+            'text_weights_before.shape': tuple(clip_w_before.shape) if clip_w_before is not None else None,
             'text_weights.shape': tuple(clip_w.shape),
             'dtype': str(clip_w.dtype),
             'device': str(clip_w.device),

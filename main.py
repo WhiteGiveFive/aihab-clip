@@ -63,6 +63,7 @@ def main():
     args = parse_args()
     cfg = load_configs(args)
     set_seed(int(cfg.get('seed', 1)))
+    backend = str(cfg.get('clip_backend', 'openai')).lower()
     # Initialize WandB if available and requested
     wandb_run = None
     use_wandb = cfg.get('projector', {}).get('enabled', False) and cfg.get('wandb_project', None)
@@ -80,10 +81,18 @@ def main():
             config=cfg,
         )
 
-    dl_tr, dl_val, dl_te, train_tf, test_tf, info = build_loaders(cfg)
-
     # Step 1: CLIP init + CS text head
     clip_bundle = init_clip_and_text_head(cfg)
+
+    # Select transforms: prefer model-native preprocess for OpenCLIP when enabled
+    train_tf_override, test_tf_override = None, None
+    use_model_preprocess = bool(cfg.get('use_model_preprocess', backend == 'openclip'))
+    if use_model_preprocess and backend == 'openclip':
+        train_tf_override = clip_bundle.get('preprocess_train', None)
+        test_tf_override = clip_bundle.get('preprocess_val', None)
+
+    dl_tr, dl_val, dl_te, train_tf, test_tf, info = build_loaders(
+        cfg, train_tf_override=train_tf_override, test_tf_override=test_tf_override)
 
     # Inspect everything including CLIP/text head
     inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info, clip_bundle)
