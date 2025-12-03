@@ -13,12 +13,13 @@ projector:
 wandb_project: 'aihab-clip'
 
 # ------ CLIP / Model settings ------
-clip_backend: 'openai'         # openai | openclip
+clip_backend: 'openclip'         # openai | openclip
 backbone: 'ViT-B/32'           # RN50 | RN101 | ViT-B/16 | ViT-B/32 (OpenAI CLIP names)
-open_clip_model: 'ViT-B-16'    # OpenCLIP model name (used when clip_backend=openclip)
+open_clip_model: 'hf-hub:timm/ViT-L-16-SigLIP2-384'    # OpenCLIP model name (used when clip_backend=openclip)
 open_clip_pretrained: null # OpenCLIP pretrained tag (e.g., laion2b_s34b_b79k)
 open_clip_cache_dir: null      # optional path override for OpenCLIP checkpoints
 use_model_preprocess: True     # when True and clip_backend=openclip, use the model's native preprocess transforms
+unlocked_groups: 1             # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
 SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
@@ -34,8 +35,7 @@ save_checkpoints: False
 
 # ------ Feature caching ------
 save_features: False       # set True to precompute and cache pre-projection features
-aug_views: 1               # number of augmentation views to cache (use 300 for few-shot)
-batch_size: 16             # batch size used for feature saving
+aug_views: 3               # number of augmentation views to cache (use 300 for few-shot)
 shuffle: True
 
 # ------ Training mode (loader control) ------

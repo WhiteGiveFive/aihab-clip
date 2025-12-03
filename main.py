@@ -10,6 +10,7 @@ import wandb
 from utils import load_cfg_from_cfg_file, merge_cfg_from_list
 from data.templates import CS_CLASSNAMES
 from methods.ProLIP import ProLIP
+from methods.PEFT_openclip import FTOpenCLIP
 from aihab_utils.feature_cache import _feature_cache_dir, cache_preprojection_features, _feature_cache_exists
 from aihab_utils.model_init import init_clip_and_text_head, inspect
 from data.dataloader import build_loaders
@@ -101,8 +102,31 @@ def main():
         # Optionally cache features
         if bool(cfg.get('save_features', False)):
             cache_preprojection_features(cfg, clip_bundle, dl_tr, info)
+        
+        backend = str(cfg.get('clip_backend', 'openai')).lower()
+        do_finetune = cfg.get('projector', {}).get('enabled', False)
+
+        if do_finetune and backend == 'openclip':
+            finetuner = FTOpenCLIP(cfg)
+            clip_model = clip_bundle['clip_model']
+            text_weights = clip_bundle['text_weights']
+            # optional: text_weights = text_weights.to(device) if needed
+            loss, acc = finetuner(
+                train_loader=dl_tr,
+                val_loader=dl_val,
+                test_loader=dl_te,
+                text_weights=text_weights,
+                model=clip_model,
+                classnames=CS_CLASSNAMES,
+                shots=int(cfg.get('shots', 0) or 0),
+                config_file=Path(args.dataset_config).stem,
+            )
+            print("\n==== OpenCLIP Finetune results ====")
+            print(f"Loss: {loss}, Accuracy: {acc}")
+            if wandb_run is not None:
+                wandb_run.log({'acc': float(acc) if hasattr(acc, 'item') else acc})
         # Projector training/eval
-        if cfg.get('projector', {}).get('enabled', False):
+        elif do_finetune and backend == 'openai':
             cache_dir = _feature_cache_dir(cfg)
             aug_views = int(cfg.get('aug_views', 1) or 1)
             if not _feature_cache_exists(cache_dir, aug_views):

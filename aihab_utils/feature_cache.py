@@ -5,16 +5,30 @@ from methods.utils import compute_image_features
 
 
 def _canonical_backbone_name(backbone: str) -> str:
+    """
+    Canonicalize backbone names for cache folder names.
+
+    - OpenAI aliases: ViT-B/16 -> ViTB16, ViT-B/32 -> ViTB32
+    - OpenCLIP names are kept but sanitized: replace '/', spaces, and ':' with '_'
+      so strings like 'hf-hub:timm/ViT-SO400M-14-SigLIP' become
+      'hf-hub_timm_ViT-SO400M-14-SigLIP'.
+    """
+    if not backbone:
+        return "unknown"
     if backbone == "ViT-B/16":
         return "ViTB16"
     if backbone == "ViT-B/32":
         return "ViTB32"
-    return backbone
+    name = backbone.replace("hf-hub:", "hf-hub_")
+    name = name.replace("/", "_").replace(" ", "_").replace(":", "_")
+    return name
 
 
 def _feature_cache_dir(cfg) -> Path:
     root = Path(cfg.get('root_path', './'))
-    backbone_name = _canonical_backbone_name(cfg.get('backbone', 'RN50'))
+    backend = str(cfg.get('clip_backend', 'openai')).lower()
+    backbone_raw = cfg.get('open_clip_model', cfg.get('backbone', 'RN50')) if backend == 'openclip' else cfg.get('backbone', 'RN50')
+    backbone_name = _canonical_backbone_name(backbone_raw)
     dataset_id = cfg.get('dataset', 'cs')
     shots = int(cfg.get('shots', 0) or 0)
     seed = int(cfg.get('seed', 1) or 1)
