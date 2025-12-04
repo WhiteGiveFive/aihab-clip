@@ -67,7 +67,7 @@ def main():
     backend = str(cfg.get('clip_backend', 'openai')).lower()
     # Initialize WandB if available and requested
     wandb_run = None
-    use_wandb = cfg.get('projector', {}).get('enabled', False) and cfg.get('wandb_project', None)
+    use_wandb = cfg.get('finetune', {}).get('enabled', False) and cfg.get('wandb_project', None)
     if use_wandb:
         run_name = (
             f"{cfg.get('dataset', 'ds')}_"
@@ -104,7 +104,7 @@ def main():
             cache_preprojection_features(cfg, clip_bundle, dl_tr, info)
         
         backend = str(cfg.get('clip_backend', 'openai')).lower()
-        do_finetune = cfg.get('projector', {}).get('enabled', False)
+        do_finetune = cfg.get('finetune', {}).get('enabled', False)
 
         if do_finetune and backend == 'openclip':
             finetuner = FTOpenCLIP(cfg)
@@ -130,7 +130,7 @@ def main():
             cache_dir = _feature_cache_dir(cfg)
             aug_views = int(cfg.get('aug_views', 1) or 1)
             if not _feature_cache_exists(cache_dir, aug_views):
-                if cfg.get('projector', {}).get('require_cached_features', True):
+                if cfg.get('finetune', {}).get('require_cached_features', True):
                     raise FileNotFoundError(f"Cached features not found in {cache_dir}; run with save_features=True first.")
                 else:
                     print(f"[warn] Cached features missing in {cache_dir}; generating now.")
@@ -168,7 +168,7 @@ def main():
             if wandb_run is not None:
                 wandb_run.log({'acc': float(acc) if hasattr(acc, 'item') else acc})
         else:
-            print("\nProjector training disabled (projector.enabled=False).")
+            print("\nFinetune disabled (finetune.enabled=False).")
     else:
         print("\nInspection-only run; skipping caching and ProLIP.")
 

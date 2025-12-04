@@ -8,6 +8,27 @@ from tqdm import tqdm
 from collections import defaultdict
 
 
+def _run_validation(model, loader, text_weights, device):
+    model.eval()
+    total_loss, total_correct, total_seen, batches = 0.0, 0, 0, 0
+    ce = torch.nn.CrossEntropyLoss()
+    with torch.no_grad():
+        for images, targets in loader:
+            images, targets = images.to(device), targets.to(device)
+            feats = model.encode_image(images)
+            feats = F.normalize(feats, dim=-1)
+            logits = 100.0 * feats @ text_weights
+            loss = ce(logits, targets)
+            acc = cls_acc(logits, targets)
+            total_loss += loss.item()
+            total_correct += acc / 100 * len(targets)
+            total_seen += len(targets)
+            batches += 1
+    avg_loss = total_loss / max(batches, 1)
+    avg_acc = total_correct / max(total_seen, 1)
+    return avg_loss, avg_acc
+
+
 class FTOpenCLIP(FSCLIPmethod):
     def __init__(self, args: argparse.Namespace):
         super().__init__(args)
@@ -25,11 +46,12 @@ class FTOpenCLIP(FSCLIPmethod):
                 ):
 
         cfg = self.cfg
+        ft_cfg = cfg['finetune']
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = model.to(device)    # perhaps we can skip this, as we have loaded the model on device in model init
 
         # Set up the trainable layers
-        unlocked_groups = int(cfg.get('unlocked_groups', 1))
+        unlocked_groups = int(ft_cfg.get('unlocked_groups', 1))
         model.lock_image_tower(unlocked_groups=unlocked_groups)
         model.lock_text_tower()
 
@@ -56,11 +78,13 @@ class FTOpenCLIP(FSCLIPmethod):
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, cfg['train_epoch'])
 
         # Training loop
+        val_interval = int(ft_cfg.get('val_interval', 0))  # 0 -> only final
+
         print('\nStart Training procedure')
         for train_idx in range(cfg['train_epoch']):
             correct_samples, all_samples = 0, 0
             running_loss, running_batches = 0.0, 0
-            print('Train Epoch: {:} / {:}'.format(train_idx, cfg['train_epoch']))
+            print('Train Epoch: {:} / {:}'.format(train_idx + 1, cfg['train_epoch']))
 
             model.train()
 
@@ -87,6 +111,24 @@ class FTOpenCLIP(FSCLIPmethod):
             lr_curr = optimizer.param_groups[0]['lr']
             print('Acc: {:.4f} ({:}/{:}), Avg Loss: {:.4f}, LR: {:.2e}'.format(correct_samples / all_samples, correct_samples, all_samples, avg_loss, lr_curr))
             scheduler.step()
+
+            # Validation
+            val_loss, val_acc = None, None
+            do_val = (val_interval and ((train_idx + 1) % val_interval == 0)) or ((train_idx + 1) == cfg['train_epoch'])
+            if do_val:
+                if val_loader is not None:
+                    val_loss, val_acc = _run_validation(model, val_loader, text_weights, device)
+                    print(f"[val epoch {train_idx+1}] loss={val_loss:.4f}, acc={val_acc:.4f}")
+                else:
+                    print(f"[val epoch {train_idx+1}] skipped (val_loader=None)")
+
+        # Evaluation
+        if test_loader is not None:
+            test_loss, test_acc = _run_validation(model, test_loader, text_weights, device)
+            print(f"[test] loss={test_loss:.4f}, acc={test_acc:.4f}")
+        else:
+            print("[test] skipped (test_loader=None)")
+            
         torch.cuda.empty_cache()
         
-        return avg_loss, correct_samples / all_samples
+        return test_loss, test_acc
