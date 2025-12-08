@@ -42,7 +42,8 @@ class FTOpenCLIP(FSCLIPmethod):
                 model: nn.Module,
                 classnames,
                 shots: int, 
-                config_file: str
+                config_file: str,
+                return_valid: bool, 
                 ):
 
         cfg = self.cfg
@@ -131,4 +132,7 @@ class FTOpenCLIP(FSCLIPmethod):
             
         torch.cuda.empty_cache()
         
-        return test_loss, test_acc
+        if return_valid:
+            return val_loss, val_acc
+        else:
+            return test_loss, test_acc

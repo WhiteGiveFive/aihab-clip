@@ -7,7 +7,7 @@ output_dir: './results'
 finetune:
   enabled: True               # set True to run ProLIP training/eval
   unlocked_groups: 1             # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
-  val_interval: 2
+  val_interval: 5
   eval_only: False             # skip training, only evaluate projector
   checkpoint: null             # optional path to saved projector weights
   output_dir: './results'      # where to write ProLIP outputs/checkpoints, not used at this moment.
