@@ -195,14 +195,14 @@ def run(cfg, dataset_config_path: str, inspect_only: bool = False):
             classnames=CS_CLASSNAMES,
             shots=int(cfg.get('shots', 0) or 0),
             config_file=Path(dataset_config_path).stem,
-            return_valid=True
+            return_valid=False
         )
         print("\n==== OpenCLIP Finetune results ====")
         print(f"Loss: {loss}, Accuracy: {acc}")
         if wandb_run is not None:
             wandb_run.log({
-                'val_acc': float(acc) if hasattr(acc, 'item') else acc,
-                'val_loss': float(loss) if hasattr(loss, 'item') else loss,
+                'test_acc': float(acc) if hasattr(acc, 'item') else acc,
+                'test_loss': float(loss) if hasattr(loss, 'item') else loss,
             })
     elif do_finetune and backend == 'openai':
         cache_dir = _feature_cache_dir(cfg)

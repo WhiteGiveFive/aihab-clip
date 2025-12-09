@@ -120,7 +120,7 @@ def main():
                 classnames=CS_CLASSNAMES,
                 shots=int(cfg.get('shots', 0) or 0),
                 config_file=Path(args.dataset_config).stem,
-                return_valid=True
+                return_valid=False
             )
             print("\n==== OpenCLIP Finetune results ====")
             print(f"Loss: {loss}, Accuracy: {acc}")
