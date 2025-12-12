@@ -10,7 +10,7 @@ from collections import defaultdict
 
 def _run_validation(model, loader, text_weights, device):
     model.eval()
-    total_loss, total_correct, total_seen, batches = 0.0, 0, 0, 0
+    total_loss, total_top1, total_top3, total_seen, batches = 0.0, 0, 0, 0, 0
     ce = torch.nn.CrossEntropyLoss()
     with torch.no_grad():
         for images, targets in loader:
@@ -19,17 +19,28 @@ def _run_validation(model, loader, text_weights, device):
             feats = F.normalize(feats, dim=-1)
             logits = 100.0 * feats @ text_weights
             loss = ce(logits, targets)
-            acc = cls_acc(logits, targets)
+
+            top1 = cls_acc(logits, targets)
+            top3 = cls_acc(logits, targets, topk=3)
+
             total_loss += loss.item()
-            total_correct += acc / 100 * len(targets)
+
+            total_top1 += top1 / 100 * len(targets)
+            total_top3 += top3 / 100 * len(targets)
+
             total_seen += len(targets)
             batches += 1
     avg_loss = total_loss / max(batches, 1)
-    avg_acc = total_correct / max(total_seen, 1)
-    return avg_loss, avg_acc
+    avg_top1 = total_top1 / max(total_seen, 1)
+    avg_top3 = total_top3 / max(total_seen, 1)
+    
+    return avg_loss, avg_top1, avg_top3
 
 
 class FTOpenCLIP(FSCLIPmethod):
+    """
+    The loss calculation can refer to https://github.com/mlfoundations/open_clip/blob/main/src/open_clip/model.py. 
+    """
     def __init__(self, args: argparse.Namespace):
         super().__init__(args)
         self.cfg = args
@@ -114,25 +125,25 @@ class FTOpenCLIP(FSCLIPmethod):
             scheduler.step()
 
             # Validation
-            val_loss, val_acc = None, None
+            val_loss, val_top1_acc, val_top3_acc = None, None, None
             do_val = (val_interval and ((train_idx + 1) % val_interval == 0)) or ((train_idx + 1) == cfg['train_epoch'])
             if do_val:
                 if val_loader is not None:
-                    val_loss, val_acc = _run_validation(model, val_loader, text_weights, device)
-                    print(f"[val epoch {train_idx+1}] loss={val_loss:.4f}, acc={val_acc:.4f}")
+                    val_loss, val_top1_acc, val_top3_acc = _run_validation(model, val_loader, text_weights, device)
+                    print(f"[val epoch {train_idx+1}] loss={val_loss:.4f}, top1_acc={val_top1_acc:.4f}, top3_acc={val_top3_acc:.4f}")
                 else:
                     print(f"[val epoch {train_idx+1}] skipped (val_loader=None)")
 
         # Evaluation
         if test_loader is not None:
-            test_loss, test_acc = _run_validation(model, test_loader, text_weights, device)
-            print(f"[test] loss={test_loss:.4f}, acc={test_acc:.4f}")
+            test_loss, test_top1_acc, test_top3_acc = _run_validation(model, test_loader, text_weights, device)
+            print(f"[test] loss={test_loss:.4f}, top1_acc={test_top1_acc:.4f}, top3_acc={test_top3_acc:.4f}")
         else:
             print("[test] skipped (test_loader=None)")
             
         torch.cuda.empty_cache()
         
         if return_valid:
-            return val_loss, val_acc
+            return val_loss, val_top1_acc, val_top3_acc
         else:
-            return test_loss, test_acc
+            return test_loss, test_top1_acc, test_top3_acc

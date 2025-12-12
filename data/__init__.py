@@ -97,14 +97,14 @@ REASSIGN_NAME_LABEL_L3 = {
 
 NAME_LABEL_L2 = {
     'Urban': 0,
-    'Woodland and forest': 1,
+    'Woodland and Forest': 1,
     'Cropland': 2,
     'Grassland': 3,
-    'Heathland and shrub': 4,
+    'Heathland and Shrub': 4,
     'Wetland': 5,
-    'Marine inlets and transitional waters': 6,
-    'Sparsely vegetated land': 7,
-    'Rivers and lakes': 8,
+    'Marine Inlets and Transitional Waters': 6,
+    'Sparsely Vegetated Land': 7,
+    'Rivers and Lakes': 8,
     'Sea': 9,
     'Montane': 10,
 }

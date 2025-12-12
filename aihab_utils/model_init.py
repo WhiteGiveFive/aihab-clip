@@ -3,7 +3,7 @@ from typing import Optional
 import torch
 import clip
 from utils import clip_classifier
-from data.templates import CS_TEMPLATES, CS_CLASSNAMES
+from data.templates import CS_TEMPLATES, CS_CLASSNAMES, gen_prompts
 from data import REASSIGN_LABEL_NAME_L3
 import open_clip
 
@@ -41,7 +41,8 @@ def _expected_clip_model_path(backbone: str, download_root: Optional[str]) -> Op
 
 def _load_openclip(backbone: str,
                    pretrained: str,
-                   cache_root: Optional[str] = None):
+                   cache_root: Optional[str] = None,
+                   use_hierarchical_prompts: bool = True):
     """
     Load an OpenCLIP model and build the CS text head.
 
@@ -62,11 +63,8 @@ def _load_openclip(backbone: str,
     )
     tokenizer = open_clip.get_tokenizer(backbone)
 
-    # Build prompts: [class][template] flattened
-    prompts = []
-    for cls in CS_CLASSNAMES:
-        cls_clean = cls.replace('_', ' ')
-        prompts.extend([tmpl.format(cls_clean) for tmpl in CS_TEMPLATES])
+    # Build prompts: [class][template] flattened; user can toggle hierarchy
+    prompts, templates_per_class = gen_prompts(use_hierarchy=use_hierarchical_prompts)
 
     tokens = tokenizer(prompts).to(device)
 
@@ -76,10 +74,10 @@ def _load_openclip(backbone: str,
         text_feats = text_feats / text_feats.norm(dim=-1, keepdim=True)
 
     num_classes = len(CS_CLASSNAMES)
-    num_templates = len(CS_TEMPLATES)
+    assert len(prompts) == num_classes * templates_per_class, "Prompt count mismatch"
     dim = text_feats.shape[-1]
 
-    text_feats = text_feats.view(num_classes, num_templates, dim)
+    text_feats = text_feats.view(num_classes, templates_per_class, dim)
     # [templates, classes, dim]
     # Note: OpenCLIP encode_text returns post-projection normalized features; to avoid
     # confusion with the OpenAI path (which returns true pre-projection outputs),
@@ -90,19 +88,22 @@ def _load_openclip(backbone: str,
     text_weights = text_weights / text_weights.norm(dim=-1, keepdim=True)
     text_weights = text_weights.t().contiguous()
 
-    # Keep a reference token batch for the first template (for inspection parity)
-    first_template_tokens = tokenizer(
-        [CS_TEMPLATES[0].format(cls.replace('_', ' ')) for cls in CS_CLASSNAMES]
-    ).to(device)
+    # Example prompt set: all templates for a representative class (Improved Grassland / Grassland)
+    example_class = "Improved Grassland"
+    example_idx = CS_CLASSNAMES.index(example_class) if example_class in CS_CLASSNAMES else 0
+    example_prompts = prompts[example_idx * templates_per_class:(example_idx + 1) * templates_per_class]
+    example_tokens = tokenizer(example_prompts).to(device)
 
     return {
         'state_dict': model.state_dict(),
         'clip_model': model,
         'preprocess_train': preprocess_train,
         'preprocess_val': preprocess_val,
-        'texts': first_template_tokens,
+        'texts': example_tokens,
         'text_weights_before': text_weights_before,
         'text_weights': text_weights,
+        'num_templates': templates_per_class,
+        'example_prompts': example_prompts,
     }
 
 
@@ -118,7 +119,11 @@ def init_clip_and_text_head(cfg):
         backbone = cfg.get('open_clip_model', cfg.get('backbone', 'ViT-B-16'))
         pretrained = cfg.get('open_clip_pretrained', 'openai')
         cache_root = cfg.get('open_clip_cache_dir', None)
-        return _load_openclip(backbone=backbone, pretrained=pretrained, cache_root=cache_root)
+        use_hier = bool(cfg.get('use_hierarchical_prompts', True))
+        return _load_openclip(backbone=backbone,
+                              pretrained=pretrained,
+                              cache_root=cache_root,
+                              use_hierarchical_prompts=use_hier)
 
     if backend == 'openai':
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -210,16 +215,26 @@ def inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info: dict, clip_bundl
         print("\nText head summary:")
         clip_w_before = clip_bundle['text_weights_before']
         clip_w = clip_bundle['text_weights']
+        num_templates = clip_bundle.get('num_templates', len(CS_TEMPLATES))
         print({
             'num_classes': len(CS_CLASSNAMES),
-            'num_templates': len(CS_TEMPLATES),
+            'num_templates': num_templates,
             'text_weights_before.shape': tuple(clip_w_before.shape) if clip_w_before is not None else None,
             'text_weights.shape': tuple(clip_w.shape),
             'dtype': str(clip_w.dtype),
             'device': str(clip_w.device),
         })
 
-        sample_classes = [REASSIGN_LABEL_NAME_L3[i] for i in sorted(REASSIGN_LABEL_NAME_L3.keys())[:5]]
-        sample_prompts = [CS_TEMPLATES[0].format(c) for c in sample_classes]
-        print("sample classes (first 5):", sample_classes)
-        print("sample prompts (first template):", sample_prompts)
+        sample_class = "Improved Grassland"
+        sample_prompts = clip_bundle.get('example_prompts', None)
+        if sample_prompts is None:
+            # fallback: regenerate prompts for the sample class according to active hierarchy flag
+            use_hier = bool(cfg.get('use_hierarchical_prompts', True))
+            all_prompts, tpc = gen_prompts(use_hierarchy=use_hier)
+            if sample_class in CS_CLASSNAMES:
+                idx = CS_CLASSNAMES.index(sample_class)
+                sample_prompts = all_prompts[idx * tpc:(idx + 1) * tpc]
+            else:
+                sample_prompts = all_prompts[:tpc]
+        print("sample class:", sample_class)
+        print("sample prompts (all templates for class):", sample_prompts)

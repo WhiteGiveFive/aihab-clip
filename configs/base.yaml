@@ -6,7 +6,7 @@ output_dir: './results'
 # ------ Projector training switches ------
 finetune:
   enabled: True               # set True to run ProLIP training/eval
-  unlocked_groups: 1             # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
+  unlocked_groups: 11             # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
   val_interval: 5
   eval_only: False             # skip training, only evaluate projector
   checkpoint: null             # optional path to saved projector weights
@@ -21,6 +21,7 @@ open_clip_model: 'hf-hub:timm/ViT-SO400M-16-SigLIP2-384'    # OpenCLIP model nam
 open_clip_pretrained: null # OpenCLIP pretrained tag (e.g., laion2b_s34b_b79k)
 open_clip_cache_dir: null      # optional path override for OpenCLIP checkpoints
 use_model_preprocess: True     # when True and clip_backend=openclip, use the model's native preprocess transforms
+use_hierarchical_prompts: False # toggle hierarchical (L2+L3) prompts vs flat L3-only prompts
 SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
