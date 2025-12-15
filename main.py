@@ -13,6 +13,7 @@ from methods.ProLIP import ProLIP
 from methods.PEFT_openclip import FTOpenCLIP
 from aihab_utils.feature_cache import _feature_cache_dir, cache_preprojection_features, _feature_cache_exists
 from aihab_utils.model_init import init_clip_and_text_head, inspect
+from aihab_utils.evalution import draw_cm
 from data.dataloader import build_loaders
 
 
@@ -111,7 +112,7 @@ def main():
             clip_model = clip_bundle['clip_model']
             text_weights = clip_bundle['text_weights']
             # optional: text_weights = text_weights.to(device) if needed
-            loss, top1_acc, top3_acc = finetuner(
+            loss, top1_acc, top3_acc, f1, mcc, cm = finetuner(
                 train_loader=dl_tr,
                 val_loader=dl_val,
                 test_loader=dl_te,
@@ -123,13 +124,26 @@ def main():
                 return_valid=False
             )
             print("\n==== OpenCLIP Finetune results ====")
-            print(f"Loss: {loss}, Top-1 Accuracy: {top1_acc}, Top-3 Accuracy: {top3_acc}")
+            print(f"Loss: {loss}, Top-1 Accuracy: {top1_acc}, Top-3 Accuracy: {top3_acc}, F1 (weighted): {f1}, MCC: {mcc}")
+            # log to W&B
             if wandb_run is not None:
                 wandb_run.log({
                     'top1_acc': float(top1_acc) if hasattr(top1_acc, 'item') else top1_acc,
                     'top3_acc': float(top3_acc) if hasattr(top3_acc, 'item') else top3_acc,
+                    'f1': float(f1), 
+                    'mcc': float(mcc), 
                     'loss': float(loss) if hasattr(loss, 'item') else loss,
                 })
+
+                if cm is not None:
+                    cm_rows = [[true_name] + cm[i].tolist() for i, true_name in enumerate(CS_CLASSNAMES)]
+                    wandb_run.log({
+                        "confusion_matrix": wandb.Table(
+                            data=cm_rows,
+                            columns=["true_label"] + list(CS_CLASSNAMES),
+                        )
+                    })
+                    draw_cm(cm, label_list=CS_CLASSNAMES)
         # Projector training/eval
         elif do_finetune and backend == 'openai':
             cache_dir = _feature_cache_dir(cfg)

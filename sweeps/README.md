@@ -20,7 +20,7 @@ python tools/run_ft_sweep.py \
 ## Running the sweep
 From the repo root:
 ```bash
-wandb sweep --project aihab-clip sweeps/openclip_ft.yaml
+wandb sweep --project aihab-clip-sweep sweeps/openclip_ft.yaml
 # copy the printed SWEEP_ID, then
 wandb agent SWEEP_ID
 # optional: limit runs per agent

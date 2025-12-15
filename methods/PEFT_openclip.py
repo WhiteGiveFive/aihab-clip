@@ -6,12 +6,20 @@ from .method import FSCLIPmethod
 from .utils import cls_acc
 from tqdm import tqdm
 from collections import defaultdict
+from torcheval.metrics import MulticlassF1Score, MulticlassConfusionMatrix
+from sklearn.metrics import matthews_corrcoef
 
 
-def _run_validation(model, loader, text_weights, device):
+def _run_validation(model, loader, text_weights, device, return_confusion_matrix: bool = False):
     model.eval()
     total_loss, total_top1, total_top3, total_seen, batches = 0.0, 0, 0, 0, 0
+    y_true_all, y_pred_all = [], []
     ce = torch.nn.CrossEntropyLoss()
+
+    num_classes = int(text_weights.shape[1])
+    f1_metric = MulticlassF1Score(num_classes=num_classes, average="weighted")
+    cm_metric = MulticlassConfusionMatrix(num_classes=num_classes) if return_confusion_matrix else None
+
     with torch.no_grad():
         for images, targets in loader:
             images, targets = images.to(device), targets.to(device)
@@ -22,6 +30,7 @@ def _run_validation(model, loader, text_weights, device):
 
             top1 = cls_acc(logits, targets)
             top3 = cls_acc(logits, targets, topk=3)
+            preds = logits.argmax(dim=1)
 
             total_loss += loss.item()
 
@@ -30,11 +39,28 @@ def _run_validation(model, loader, text_weights, device):
 
             total_seen += len(targets)
             batches += 1
+
+            y_true_all.append(targets.detach().cpu())
+            y_pred_all.append(preds.detach().cpu())
+
+            f1_metric.update(preds, targets)
+            if cm_metric is not None:
+                cm_metric.update(preds, targets)
+
     avg_loss = total_loss / max(batches, 1)
     avg_top1 = total_top1 / max(total_seen, 1)
     avg_top3 = total_top3 / max(total_seen, 1)
-    
-    return avg_loss, avg_top1, avg_top3
+    f1_weighted = float(f1_metric.compute().item())
+    y_true_all = torch.cat(y_true_all).numpy()
+    y_pred_all = torch.cat(y_pred_all).numpy()
+    mcc = float(matthews_corrcoef(y_true_all, y_pred_all))
+
+
+    if cm_metric is None:
+        confusion_matrix = None
+        return avg_loss, avg_top1, avg_top3, f1_weighted, mcc, confusion_matrix
+    confusion_matrix = cm_metric.compute().cpu().numpy()
+    return avg_loss, avg_top1, avg_top3, f1_weighted, mcc, confusion_matrix
 
 
 class FTOpenCLIP(FSCLIPmethod):
@@ -125,25 +151,28 @@ class FTOpenCLIP(FSCLIPmethod):
             scheduler.step()
 
             # Validation
-            val_loss, val_top1_acc, val_top3_acc = None, None, None
+            val_loss, val_top1_acc, val_top3_acc, val_f1, val_mcc, val_cm = None, None, None, None, None, None
             do_val = (val_interval and ((train_idx + 1) % val_interval == 0)) or ((train_idx + 1) == cfg['train_epoch'])
             if do_val:
                 if val_loader is not None:
-                    val_loss, val_top1_acc, val_top3_acc = _run_validation(model, val_loader, text_weights, device)
-                    print(f"[val epoch {train_idx+1}] loss={val_loss:.4f}, top1_acc={val_top1_acc:.4f}, top3_acc={val_top3_acc:.4f}")
+                    val_loss, val_top1_acc, val_top3_acc, val_f1, val_mcc, val_cm = _run_validation(
+                        model, val_loader, text_weights, device, return_confusion_matrix=False)
+                    print(f"[val epoch {train_idx+1}] loss={val_loss:.4f}, top1_acc={val_top1_acc:.4f}, top3_acc={val_top3_acc:.4f}, f1={val_f1:.4f}, mcc={val_mcc:.4f}")
                 else:
                     print(f"[val epoch {train_idx+1}] skipped (val_loader=None)")
 
         # Evaluation
+        test_loss, test_top1_acc, test_top3_acc, test_f1, test_mcc, test_cm = None, None, None, None, None, None
         if test_loader is not None:
-            test_loss, test_top1_acc, test_top3_acc = _run_validation(model, test_loader, text_weights, device)
-            print(f"[test] loss={test_loss:.4f}, top1_acc={test_top1_acc:.4f}, top3_acc={test_top3_acc:.4f}")
+            test_loss, test_top1_acc, test_top3_acc, test_f1, test_mcc, test_cm = _run_validation(
+                model, test_loader, text_weights, device, return_confusion_matrix=True)
+            print(f"[test] loss={test_loss:.4f}, top1_acc={test_top1_acc:.4f}, top3_acc={test_top3_acc:.4f}, f1={test_f1:.4f}, mcc={test_mcc:.4f}")
         else:
             print("[test] skipped (test_loader=None)")
             
         torch.cuda.empty_cache()
         
         if return_valid:
-            return val_loss, val_top1_acc, val_top3_acc
+            return val_loss, val_top1_acc, val_top3_acc, val_f1, val_mcc, val_cm
         else:
-            return test_loss, test_top1_acc, test_top3_acc
+            return test_loss, test_top1_acc, test_top3_acc, test_f1, test_mcc, test_cm

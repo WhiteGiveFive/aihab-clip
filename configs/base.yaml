@@ -21,12 +21,12 @@ open_clip_model: 'hf-hub:timm/ViT-SO400M-16-SigLIP2-384'    # OpenCLIP model nam
 open_clip_pretrained: null # OpenCLIP pretrained tag (e.g., laion2b_s34b_b79k)
 open_clip_cache_dir: null      # optional path override for OpenCLIP checkpoints
 use_model_preprocess: True     # when True and clip_backend=openclip, use the model's native preprocess transforms
-use_hierarchical_prompts: False # toggle hierarchical (L2+L3) prompts vs flat L3-only prompts
+use_hierarchical_prompts: True # toggle hierarchical (L2+L3) prompts vs flat L3-only prompts
 SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
 method: 'ProLIP'
-train_epoch: 10           # projector training epochs (few-shot can use 300)
+train_epoch: 5           # projector training epochs (few-shot can use 300)
 lr_v: 0.00005              # projector learning rate
 lambda_v: 0.1              # fallback regularization strength
 lambda_funct_1_N: False     # if True, lambda = 1/N (shots), make it False when shots = 0!
