@@ -12,24 +12,24 @@ from . import REASSIGN_LABEL_NAME_L3, NAME_LABEL_L2, REASSIGN_NAME_LABEL_L3L2
 # Keep prompts generic and compositionally robust; ProLIP will average
 # text embeddings over this set.
 CS_TEMPLATES = [
-    "a photo of {}.",
-    "a photo of a {}.",
-    "a close-up photo of {}.",
-    "a landscape photo of {}.",
-    "a nature photo of {}.",
-    "an outdoor scene of {}.",
+    # "a photo of {}.",
+    # "a photo of a {}.",
+    # "a close-up photo of {}.",
+    # "a landscape photo of {}.",
+    # "a nature photo of {}.",
+    # "an outdoor scene of {}.",
     "a ground-level photograph of {}.",
-    "a field survey photo of {}.",
+    # "a field survey photo of {}.",
     "a habitat photo of {}.",
     "a photo of {} habitat.",
-    "a photo of {} vegetation.",
+    # "a photo of {} vegetation.",
     "a photo of {} land cover.",
-    "a detailed photo of {}.",
-    "a clear photo of {}.",
-    "a high-resolution photo of {}.",
-    "a zoomed-out photo of {}.",
-    "a cropped photo of {}.",
-    "a realistic photo of {}.",
+    # "a detailed photo of {}.",
+    # "a clear photo of {}.",
+    # "a high-resolution photo of {}.",
+    # "a zoomed-out photo of {}.",
+    # "a cropped photo of {}.",
+    # "a realistic photo of {}.",
 ]
 
 # Ordered L3 classnames (0..N-1) as required by ProLIP's text head.
@@ -47,8 +47,11 @@ def gen_prompts(use_hierarchy: bool = True):
     """
     if use_hierarchy:
         template_set = [
-            "a photo of {l3}, a type of {l2} habitat.",
+            # "a photo of {l3}, a type of {l2} habitat.",
             "a habitat photo of {l2}, specifically {l3}",
+            "a habitat photo from the {l2} category: {l3}.", 
+            "a ground-level photograph of {l2} land cover: {l3}.", 
+            "a landscape photo of {l2} habitat with {l3}.",
         ]
     else:
         template_set = CS_TEMPLATES

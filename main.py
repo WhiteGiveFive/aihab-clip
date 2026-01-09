@@ -121,7 +121,9 @@ def main():
                 classnames=CS_CLASSNAMES,
                 shots=int(cfg.get('shots', 0) or 0),
                 config_file=Path(args.dataset_config).stem,
-                return_valid=False
+                return_valid=False,
+                prompt_tokens=clip_bundle['prompt_tokens'],
+                num_templates=clip_bundle['num_templates'],
             )
             print("\n==== OpenCLIP Finetune results ====")
             print(f"Loss: {loss}, Top-1 Accuracy: {top1_acc}, Top-3 Accuracy: {top3_acc}, F1 (weighted): {f1}, MCC: {mcc}")
@@ -130,8 +132,8 @@ def main():
                 wandb_run.log({
                     'top1_acc': float(top1_acc) if hasattr(top1_acc, 'item') else top1_acc,
                     'top3_acc': float(top3_acc) if hasattr(top3_acc, 'item') else top3_acc,
-                    'f1': float(f1), 
-                    'mcc': float(mcc), 
+                    'f1': f1, 
+                    'mcc': mcc, 
                     'loss': float(loss) if hasattr(loss, 'item') else loss,
                 })
 

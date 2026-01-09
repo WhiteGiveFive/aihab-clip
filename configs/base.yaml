@@ -6,8 +6,9 @@ output_dir: './results'
 # ------ Projector training switches ------
 finetune:
   enabled: True               # set True to run ProLIP training/eval
-  unlocked_groups: 11             # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
-  val_interval: 5
+  tune_text: True            # when True (OpenCLIP), fine-tune text tower and recompute text_weights from prompt_tokens
+  unlocked_groups: 11         # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
+  val_interval: 10
   eval_only: False             # skip training, only evaluate projector
   checkpoint: null             # optional path to saved projector weights
   output_dir: './results'      # where to write ProLIP outputs/checkpoints, not used at this moment.
@@ -26,7 +27,7 @@ SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
 method: 'ProLIP'
-train_epoch: 5           # projector training epochs (few-shot can use 300)
+train_epoch: 10           # projector training epochs (few-shot can use 300)
 lr_v: 0.00005              # projector learning rate
 lambda_v: 0.1              # fallback regularization strength
 lambda_funct_1_N: False     # if True, lambda = 1/N (shots), make it False when shots = 0!
