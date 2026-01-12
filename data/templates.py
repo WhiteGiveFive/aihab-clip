@@ -49,9 +49,9 @@ def gen_prompts(use_hierarchy: bool = True):
         template_set = [
             # "a photo of {l3}, a type of {l2} habitat.",
             "a habitat photo of {l2}, specifically {l3}",
-            "a habitat photo from the {l2} category: {l3}.", 
-            "a ground-level photograph of {l2} land cover: {l3}.", 
-            "a landscape photo of {l2} habitat with {l3}.",
+            # "a habitat photo from the {l2} category: {l3}.", 
+            # "a ground-level photograph of {l2} land cover: {l3}.", 
+            # "a landscape photo of {l2} habitat with {l3}.",
         ]
     else:
         template_set = CS_TEMPLATES
