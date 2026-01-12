@@ -1,15 +1,23 @@
 program: tools/run_ft_sweep.py
 method: grid
 metric:
-  name: test_acc          # current W&B key (val_acc returned, logged as "acc")
+  name: top1_acc          # current W&B key (val_acc returned, logged as "acc")
   goal: maximize
 parameters:
   lr_v:
-    values: [5e-5, 1e-4]
+    value: 5e-5
   train_epoch:
-    values: [15, 20, 30, 40, 50]
+    value: 10
   finetune.unlocked_groups:
-    values: [20, 24, 28, 29]
+    values: 11
+  finetune.tune_text:
+    value: True
+  finetune.unlocked_layers:
+    values: [1, 5, 10, 12, 15]
+  seed:
+    values: [1, 2, 3, 4, 5]
+  use_hierarchical_prompts:
+    value: True
 
 command:
   - ${interpreter}

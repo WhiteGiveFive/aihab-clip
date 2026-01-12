@@ -129,21 +129,10 @@ class FTOpenCLIP(FSCLIPmethod):
         if not tune_text:
             model.lock_text_tower()
         else:
-            # # Leave text tower trainable; compute text weights from prompt tokens each step.
-            # if prompt_tokens is None:
-            #     raise ValueError("finetune.tune_text=True requires `prompt_tokens` to be provided.")
-            # if num_templates is None:
-            #     # Infer templates per class from token count when not provided.
-            #     num_classes = int(len(classnames))
-            #     total = int(prompt_tokens.shape[0])
-            #     if num_classes <= 0 or total % num_classes != 0:
-            #         raise ValueError(
-            #             f"Cannot infer num_templates: prompt_tokens has {total} rows, "
-            #             f"but num_classes={num_classes} does not divide it."
-            #         )
-            #     num_templates = total // num_classes
+            # Leave text tower trainable; compute text weights from prompt tokens each step.
             # prompt_tokens = prompt_tokens.to(device)
-            model.lock_text_tower(unlocked_layers=12)
+            text_unlocked_layers = int(ft_cfg.get('unlocked_layers', 1))
+            model.lock_text_tower(unlocked_layers=text_unlocked_layers)
 
         # Print out the information about the trainable layers
         frozen, trainable = [], []
