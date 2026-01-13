@@ -16,7 +16,7 @@ from data.templates import CS_CLASSNAMES
 from data.dataloader import build_loaders
 from aihab_utils.feature_cache import _feature_cache_dir, cache_preprojection_features, _feature_cache_exists
 from aihab_utils.model_init import init_clip_and_text_head, inspect
-from aihab_utils.evalution import draw_cm
+from aihab_utils.evaluation import draw_cm
 from methods.ProLIP import ProLIP
 from methods.PEFT_openclip import FTOpenCLIP
 
