@@ -8,7 +8,7 @@ finetune:
   enabled: True               # set True to run ProLIP training/eval
   tune_text: True            # when True (OpenCLIP), fine-tune text tower and recompute text_weights from prompt_tokens
   unlocked_groups: 11         # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
-  unlocked_layers: 12          # number of text tower layers to unfreeze for OpenCLIP fine-tuning (used when tune_text=True)
+  unlocked_layers: 1          # number of text tower layers to unfreeze for OpenCLIP fine-tuning (used when tune_text=True)
   val_interval: 10
   eval_only: False             # skip training, only evaluate projector
   checkpoint: null             # optional path to saved projector weights
@@ -24,6 +24,7 @@ open_clip_pretrained: null # OpenCLIP pretrained tag (e.g., laion2b_s34b_b79k)
 open_clip_cache_dir: null      # optional path override for OpenCLIP checkpoints
 use_model_preprocess: True     # when True and clip_backend=openclip, use the model's native preprocess transforms
 use_hierarchical_prompts: True # toggle hierarchical (L2+L3) prompts vs flat L3-only prompts
+use_descriptive_prompts: False   # toggle descriptive templates for Grassland L3 classes
 SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
@@ -44,3 +45,4 @@ aug_views: 3               # number of augmentation views to cache (use 300 for 
 # ------ Training mode (loader control) ------
 shots: 0                   # 0 (or <1) -> full-data; N>0 -> few-shot per class
 seed: 1
+subset_l2_names: []  # e.g. ['Grassland', 'Wetland']; empty => use all L3 classes

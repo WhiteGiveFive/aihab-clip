@@ -171,3 +171,32 @@ SWEEP_KEY_MAPPING = {
     'supcon_ptr_dir': ['training', 'supcon_conf', 'prt_dir'],
     'supcon_prt_filename': ['training', 'supcon_conf', 'prt_filename'],
 }
+
+
+def l2_names_to_l3(l2_names):
+    """
+    Convert L2 names (strings) to ordered L3 classnames + L3 ids.
+    Uses REASSIGN_NAME_LABEL_L3L2 (L3 -> (L3 id, L2 id)).
+    """
+    if not l2_names:
+        return [], []
+
+    # case-insensitive match against canonical L2 names
+    l2_norm = {k.lower(): v for k, v in NAME_LABEL_L2.items()}
+    missing = [n for n in l2_names if n.lower() not in l2_norm]
+    if missing:
+        raise ValueError(f"Unknown L2 names: {missing}. Expected one of: {list(NAME_LABEL_L2.keys())}")
+
+    l2_ids = {l2_norm[n.lower()] for n in l2_names}
+
+    l3_pairs = [
+        (l3_name, l3_id)
+        for l3_name, (l3_id, l2_id) in REASSIGN_NAME_LABEL_L3L2.items()
+        if l2_id in l2_ids
+    ]
+    l3_pairs.sort(key=lambda x: x[1])  # stable order by L3 id
+
+    l3_names = [n for n, _ in l3_pairs]
+    l3_ids = [i for _, i in l3_pairs]
+    return l3_names, l3_ids
+    

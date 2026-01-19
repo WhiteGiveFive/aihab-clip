@@ -42,7 +42,8 @@ def _expected_clip_model_path(backbone: str, download_root: Optional[str]) -> Op
 def _load_openclip(backbone: str,
                    pretrained: str,
                    cache_root: Optional[str] = None,
-                   use_hierarchical_prompts: bool = True):
+                   use_hierarchical_prompts: bool = True,
+                   use_descriptive_prompts: bool = True):
     """
     Load an OpenCLIP model and build the CS text head.
 
@@ -63,8 +64,11 @@ def _load_openclip(backbone: str,
     )
     tokenizer = open_clip.get_tokenizer(backbone)
 
-    # Build prompts: [class][template] flattened; user can toggle hierarchy
-    prompts, templates_per_class = gen_prompts(use_hierarchy=use_hierarchical_prompts)
+    # Build prompts: [class][template] flattened; user can toggle hierarchy/descriptive
+    prompts, templates_per_class = gen_prompts(
+        use_hierarchy=use_hierarchical_prompts,
+        use_descriptive=use_descriptive_prompts,
+    )
 
     tokens = tokenizer(prompts).to(device)
 
@@ -121,10 +125,12 @@ def init_clip_and_text_head(cfg):
         pretrained = cfg.get('open_clip_pretrained', 'openai')
         cache_root = cfg.get('open_clip_cache_dir', None)
         use_hier = bool(cfg.get('use_hierarchical_prompts', True))
+        use_desc = bool(cfg.get('use_descriptive_prompts', True))
         return _load_openclip(backbone=backbone,
                               pretrained=pretrained,
                               cache_root=cache_root,
-                              use_hierarchical_prompts=use_hier)
+                              use_hierarchical_prompts=use_hier,
+                              use_descriptive_prompts=use_desc)
 
     if backend == 'openai':
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -231,7 +237,8 @@ def inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info: dict, clip_bundl
         if sample_prompts is None:
             # fallback: regenerate prompts for the sample class according to active hierarchy flag
             use_hier = bool(cfg.get('use_hierarchical_prompts', True))
-            all_prompts, tpc = gen_prompts(use_hierarchy=use_hier)
+            use_desc = bool(cfg.get('use_descriptive_prompts', True))
+            all_prompts, tpc = gen_prompts(use_hierarchy=use_hier, use_descriptive=use_desc)
             if sample_class in CS_CLASSNAMES:
                 idx = CS_CLASSNAMES.index(sample_class)
                 sample_prompts = all_prompts[idx * tpc:(idx + 1) * tpc]

@@ -1,4 +1,5 @@
 from .dataset import convert_to_coarse_label, image_loader, data_partition, HABDATA, HABMETADATA, HABMETADATA_SUBSET
+from . import l2_names_to_l3
 import torch
 from torchvision import transforms
 from torchvision.transforms import v2
@@ -400,14 +401,58 @@ def build_loaders(cfg,
         train_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=True, resolution=resolution)
         test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=resolution)
 
+    # Resolve subset config (optional)
+    subset_l2_names = cfg.get('subset_l2_names', []) or []
+    if isinstance(subset_l2_names, str):
+        subset_l2_names = [subset_l2_names]
+    subset_l3_names, subset_l3_ids = l2_names_to_l3(subset_l2_names)
+    use_subset = len(subset_l3_ids) > 0
+
     # Bulk load train split
     images_tr, labels_tr, plot_word_labels_tr, poly_labels_tr, poly_word_labels_tr, file_names_tr, plot_idx_tr, src_tr = \
         image_loader(cfg['data']['dataset_paths'], cfg['data']['index_file_names'], cfg['data']['preprocessing'].get('resize', 256), verbose=True)
 
-    # Bulk load test split (derive _test folder)
-    test_paths = derive_test_paths(cfg['data']['dataset_paths'])
+    # Bulk load test split (derive _test folder unless explicit test paths provided)
+    test_paths = cfg['data'].get('test_dataset_paths', None)
+    if test_paths:
+        if isinstance(test_paths, str):
+            test_paths = [test_paths]
+    else:
+        test_paths = derive_test_paths(cfg['data']['dataset_paths'])
+
+    test_index_names = cfg['data'].get('test_index_file_names', None)
+    if test_index_names:
+        if isinstance(test_index_names, str):
+            test_index_names = [test_index_names]
+    else:
+        test_index_names = cfg['data']['index_file_names']
+
+    if len(test_paths) != len(test_index_names):
+        raise ValueError(f"Mismatch: test_dataset_paths has {len(test_paths)} entries but "
+                         f"test_index_file_names has {len(test_index_names)}.")
+
     images_te, labels_te, plot_word_labels_te, poly_labels_te, poly_word_labels_te, file_names_te, plot_idx_te, src_te = \
-        image_loader(test_paths, cfg['data']['index_file_names'], cfg['data']['preprocessing'].get('resize', 256), verbose=True)
+        image_loader(test_paths, test_index_names, cfg['data']['preprocessing'].get('resize', 256), verbose=True)
+
+    # Optional subset filtering by L2 -> L3 mapping (keep original L3 label ids)
+    if use_subset:
+        mask_tr = np.isin(labels_tr, subset_l3_ids)
+        images_tr = images_tr[mask_tr]
+        labels_tr = labels_tr[mask_tr]
+        plot_word_labels_tr = [x for x, m in zip(plot_word_labels_tr, mask_tr) if m]
+        poly_labels_tr = poly_labels_tr[mask_tr]
+        poly_word_labels_tr = [x for x, m in zip(poly_word_labels_tr, mask_tr) if m]
+        file_names_tr = [x for x, m in zip(file_names_tr, mask_tr) if m]
+        plot_idx_tr = np.asarray(plot_idx_tr)[mask_tr]
+
+        mask_te = np.isin(labels_te, subset_l3_ids)
+        images_te = images_te[mask_te]
+        labels_te = labels_te[mask_te]
+        plot_word_labels_te = [x for x, m in zip(plot_word_labels_te, mask_te) if m]
+        poly_labels_te = poly_labels_te[mask_te]
+        poly_word_labels_te = [x for x, m in zip(poly_word_labels_te, mask_te) if m]
+        file_names_te = [x for x, m in zip(file_names_te, mask_te) if m]
+        plot_idx_te = np.asarray(plot_idx_te)[mask_te]
 
     # Select indices
     seed = int(cfg.get('seed', 1))
@@ -468,6 +513,12 @@ def build_loaders(cfg,
         'val_batches': int(len(dl_val)),
         'val_split': val_ratio,
         'selection_by_class': selection_by_class,
+        'subset_enabled': use_subset,
+        'subset_l2_names': subset_l2_names,
+        'subset_l3_ids': subset_l3_ids,
+        'subset_l3_names': subset_l3_names,
     }
+    if use_subset:
+        print(f'dataloader subset: l2={subset_l2_names} l3_ids={subset_l3_ids} l3_names={subset_l3_names}')
 
     return dl_tr, dl_val, dl_te, train_tf, test_tf, info

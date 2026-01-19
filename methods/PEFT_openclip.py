@@ -33,11 +33,13 @@ def _compute_text_weights_from_tokens(model, prompt_tokens, num_classes: int, nu
 
     text_feats = model.encode_text(prompt_tokens)
     text_feats = F.normalize(text_feats, dim=-1)
+    # text_feats = text_feats / text_feats.norm(dim=-1, keepdim=True)
 
     dim = int(text_feats.shape[-1])
     text_feats = text_feats.view(num_classes, num_templates, dim)
     text_feats = text_feats.mean(dim=1)
     text_feats = F.normalize(text_feats, dim=-1)
+    # text_feats = text_feats / text_feats.norm(dim=-1, keepdim=True)
     return text_feats.t().contiguous()
 
 

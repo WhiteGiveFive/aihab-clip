@@ -3,7 +3,13 @@
 data:
   dataset_paths:
     - './data/CS_Xplots_2019_2023_train'
+    - './data/CS2007_Xs_Sept2024_all'
   index_file_names:
+    - 'CS_Xplots_2019_23_NEW02OCT24.csv'
+    - 'CS2007_X_with_habs_headrenamed.csv'
+  test_dataset_paths:
+    - './data/CS_Xplots_2019_2023_test'
+  test_index_file_names:
     - 'CS_Xplots_2019_23_NEW02OCT24.csv'
   metadata: False
   batch_size: 16 # batch size used for feature caching. 
