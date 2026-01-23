@@ -10,6 +10,8 @@ finetune:
   unlocked_groups: 11         # number of vision tower groups to unfreeze for OpenCLIP fine-tuning
   unlocked_layers: 1          # number of text tower layers to unfreeze for OpenCLIP fine-tuning (used when tune_text=True)
   val_interval: 10
+  eval_l2: False              # report L2 metrics in validation/test when True
+  l2_eval_mode: 'argmax'      # L2 evaluation mode: 'argmax' (map L3 argmax) or 'logits' (aggregate L3 logits)
   eval_only: False             # skip training, only evaluate projector
   checkpoint: null             # optional path to saved projector weights
   output_dir: './results'      # where to write ProLIP outputs/checkpoints, not used at this moment.
@@ -24,12 +26,12 @@ open_clip_pretrained: null # OpenCLIP pretrained tag (e.g., laion2b_s34b_b79k)
 open_clip_cache_dir: null      # optional path override for OpenCLIP checkpoints
 use_model_preprocess: True     # when True and clip_backend=openclip, use the model's native preprocess transforms
 use_hierarchical_prompts: True # toggle hierarchical (L2+L3) prompts vs flat L3-only prompts
-use_descriptive_prompts: False   # toggle descriptive templates for Grassland L3 classes
+use_descriptive_prompts: True   # toggle descriptive templates for Grassland L3 classes
 SUBSAMPLE_CLASSES: 'all'
 
 # ------ ProLIP training (projector) ------
 method: 'ProLIP'
-train_epoch: 10           # projector training epochs (few-shot can use 300)
+train_epoch: 5           # projector training epochs (few-shot can use 300)
 lr_v: 0.00005              # projector learning rate
 lambda_v: 0.1              # fallback regularization strength
 lambda_funct_1_N: False     # if True, lambda = 1/N (shots), make it False when shots = 0!

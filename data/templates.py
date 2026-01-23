@@ -42,15 +42,160 @@ GRASSLAND_L3_ATTRS = {
     },
 }
 
+# Descriptive attributes for Wetland (L2) L3 classes.
+WETLAND_L3_ATTRS = {
+    "Fen, Marsh, Swamp": {
+        "vegetation_structure": "tall emergent wetland herbs and sedges",
+        "dominant_cover": "sedges, rushes, reeds and wetland herbs",
+        "surface_texture": "dense emergent cover with wet channels or patches",
+        "water_level": "waterlogged to shallowly inundated",
+    },
+    "Bog": {
+        "vegetation_structure": "low open mossy vegetation with scattered dwarf shrubs",
+        "dominant_cover": "bog-moss and cotton-grass",
+        "surface_texture": "hummocky surface with small wet hollows",
+        "water_level": "persistently waterlogged",
+    },
+}
+
+# Descriptive attributes for Heathland and Shrub (L2) L3 classes.
+HEATHLAND_L3_ATTRS = {
+    "Dwarf Shrub Heath": {
+        "vegetation_height": "low dwarf shrubs (<1.5 m)",
+        "vegetation_structure": "dwarf-shrub dominated, low woody canopy",
+        "dominant_cover": "heather/ericoids and dwarf gorse",
+        "surface_texture": "patchy heather with moss/lichen and bare ground",
+    },
+}
+
+# Descriptive attributes for Cropland (L2) L3 classes.
+CROPLAND_L3_ATTRS = {
+    "Arable and Horticulture": {
+        "vegetation_structure": "regular planted rows or plots with uniform spacing",
+        "dominant_cover": "arable crops or horticultural plantings",
+        "surface_texture": "tilled or ploughed soil with furrows and stubble",
+        "management_cue": "actively cultivated or rotational fallow",
+    },
+}
+
+# Descriptive attributes for Woodland and Forest (L2) L3 classes.
+WOODLAND_L3_ATTRS = {
+    "Broadleaved Mixed and Yew Woodland": {
+        "canopy_structure": "tall broadleaved canopy, irregular and layered",
+        "foliage_type": "broad leaves with some evergreen yew",
+        "understory_light": "dappled light through mixed canopy",
+        "ground_cover": "leaf-littered forest floor",
+    },
+    "Coniferous Woodland": {
+        "canopy_structure": "tall conifer canopy, often uniform or plantation-like",
+        "foliage_type": "needle-leaved evergreen conifers",
+        "understory_light": "darker, more shaded understory",
+        "ground_cover": "needle litter with sparse ground vegetation or moss",
+    },
+}
+
+# Descriptive attributes for Marine Inlets and Transitional Waters (L2) L3 classes.
+MARINE_L3_ATTRS = {
+    "Littoral Rock": {
+        "substrate_type": "exposed rock platforms or boulder shores",
+        "surface_texture": "hard, uneven rock with crevices and pools",
+        "dominant_cover": "bare rock with algal and barnacle encrustation",
+        "tidal_influence": "intertidal, regularly wetted and exposed",
+    },
+    "Littoral Sediment": {
+        "substrate_type": "sand, mud or gravel flats",
+        "surface_texture": "flat, soft sediment with ripples",
+        "dominant_cover": "mostly bare sediment with sparse algal film",
+        "tidal_influence": "intertidal flats, regularly inundated and exposed",
+    },
+}
+
+# Descriptive attributes for Montane (L2) L3 classes.
+MONTANE_L3_ATTRS = {
+    "Montane": {
+        "vegetation_structure": "low wind-clipped vegetation above treeline",
+        "dominant_cover": "dwarf shrubs with moss, lichen and short grasses",
+        "surface_texture": "rocky ground with thin soils and bare patches",
+        "exposure_cue": "open, treeless, exposed upland ridges",
+    },
+}
+
+# Descriptive attributes for Rivers and Lakes (L2) L3 classes.
+RIVERS_L3_ATTRS = {
+    "Standing Open Waters and Canals": {
+        "water_body_form": "open water body or straight canal",
+        "water_surface": "still or slow-moving open water",
+        "bank_structure": "defined banks or engineered canal edges",
+        "aquatic_vegetation": "floating or submerged plants with narrow fringe",
+    },
+}
+
+# Descriptive attributes for Sparsely Vegetated Land (L2) L3 classes.
+SPARSE_L3_ATTRS = {
+    "Inland Rock": {
+        "substrate_type": "exposed inland rock, cliffs or scree",
+        "surface_texture": "hard rock faces with fissures and ledges",
+        "dominant_cover": "mostly bare rock with sparse crevice plants",
+        "exposure_cue": "dry, wind-exposed inland slopes",
+    },
+    "Supra-littoral Rock": {
+        "substrate_type": "coastal rock above the high-tide line",
+        "surface_texture": "rugged rock with spray-wet surfaces",
+        "dominant_cover": "salt-tolerant lichens or algae, sparse vegetation",
+        "exposure_cue": "wave-splash zone with salt spray",
+    },
+    "Supra-littoral Sediment": {
+        "substrate_type": "coastal sand, shingle or pebbles",
+        "surface_texture": "loose granular sediment with ridges",
+        "dominant_cover": "sparse salt-tolerant pioneer plants",
+        "exposure_cue": "above high tide, exposed to spray and wind",
+    },
+}
+
+# Descriptive attributes for Urban (L2) L3 classes.
+URBAN_L3_ATTRS = {
+    "Urban": {
+        "built_form": "dense built structures, walls and roofs",
+        "surface_material": "sealed hard surfaces like concrete or asphalt",
+        "vegetation_cover": "little vegetation or small landscaped patches",
+        "infrastructure_cue": "roads, kerbs, fences or utilities",
+    },
+}
+
+# Descriptive attributes for Sea (L2) L3 classes.
+SEA_L3_ATTRS = {
+    "Sea": {
+        "water_body_form": "open marine water to the horizon",
+        "surface_texture": "rolling waves or choppy surface",
+        "dominant_cover": "open water with minimal vegetation",
+        "coastal_context": "distant coastline or open sea view",
+    },
+}
+
+# Unified descriptive attributes for all L3 classes.
+DESCRIPTIVE_L3_ATTRS = {
+    **GRASSLAND_L3_ATTRS,
+    **WETLAND_L3_ATTRS,
+    **HEATHLAND_L3_ATTRS,
+    **CROPLAND_L3_ATTRS,
+    **WOODLAND_L3_ATTRS,
+    **MARINE_L3_ATTRS,
+    **MONTANE_L3_ATTRS,
+    **RIVERS_L3_ATTRS,
+    **SPARSE_L3_ATTRS,
+    **URBAN_L3_ATTRS,
+    **SEA_L3_ATTRS,
+}
+
 # Concise descriptive templates (filled from attr dict per habitat).
 DESC_TEMPLATES = [
-    "a habitat photo of {habitat}, {vegetation_height}, {sward_texture}, {dominant_cover}, {forb_richness}",
-    # "a ground-level view of {habitat}, {vegetation_height}, {sward_texture}, {dominant_cover}, {forb_richness}",
+    "a habitat photo of {habitat}, {attrs}",
+    # "a ground-level view of {habitat}, {attrs}",
 ]
 
 HIER_DESC_TEMPLATES = [
-    "a landscape photo of {l2}, specifically {l3}, {vegetation_height}, {sward_texture}, {dominant_cover}, {forb_richness}",
-    # "a ground-level view of {l2}, specifically {l3}, {vegetation_height}, {sward_texture}, {dominant_cover}, {forb_richness}",
+    "a habitat photo of {l2}, specifically {l3}, {attrs}",
+    # "a ground-level view of {l2}, specifically {l3}, {attrs}",
 ]
 
 # Prompt ensemble tailored for ground-level habitat/land-cover imagery.
@@ -84,12 +229,16 @@ CS_CLASSNAMES = [name for idx, name in sorted(REASSIGN_LABEL_NAME_L3.items(), ke
 ID_NAME_L2 = {v: k for k, v in NAME_LABEL_L2.items()}
 
 
+def _format_attrs(attrs: dict) -> str:
+    return ", ".join(attrs.values())
+
+
 def gen_prompts(use_hierarchy: bool = True, use_descriptive: bool = True):
     """
     Build prompts for CS classes.
     - use_hierarchy=True: include L2 context
     - use_hierarchy=False: fall back to flat CS_TEMPLATES on L3 names only
-    - use_descriptive=True: use descriptive templates for Grassland L3 classes
+    - use_descriptive=True: use descriptive templates for all L3 classes
     """
     if use_hierarchy:
         base_templates = [
@@ -111,27 +260,38 @@ def gen_prompts(use_hierarchy: bool = True, use_descriptive: bool = True):
             "Please make them consistent."
         )
 
-    templates_per_class = len(base_templates)
+    templates_per_class = len(desc_templates) if use_descriptive else len(base_templates)
 
     prompts = []
     for l3 in CS_CLASSNAMES:
         l3_clean = l3.replace("_", " ")
+        class_prompts = []
         if use_hierarchy:
             _, l2_id = REASSIGN_NAME_LABEL_L3L2[l3]
             l2 = ID_NAME_L2[l2_id]
-        if use_descriptive and l3_clean in GRASSLAND_L3_ATTRS:
-            attrs = GRASSLAND_L3_ATTRS[l3_clean]
+        if use_descriptive:
+            attrs = DESCRIPTIVE_L3_ATTRS.get(l3_clean)
+        else:
+            attrs = None
+        if attrs is not None:
+            attrs_text = _format_attrs(attrs)
             if use_hierarchy:
                 for tmpl in desc_templates:
-                    prompts.append(tmpl.format(l2=l2, l3=l3_clean, **attrs))
+                    class_prompts.append(tmpl.format(l2=l2, l3=l3_clean, attrs=attrs_text))
             else:
                 for tmpl in desc_templates:
-                    prompts.append(tmpl.format(habitat=l3_clean, **attrs))
+                    class_prompts.append(tmpl.format(habitat=l3_clean, attrs=attrs_text))
         else:
             if use_hierarchy:
                 for tmpl in base_templates:
-                    prompts.append(tmpl.format(l3=l3_clean, l2=l2))
+                    class_prompts.append(tmpl.format(l3=l3_clean, l2=l2))
             else:
-                prompts.extend([tmpl.format(l3_clean) for tmpl in base_templates])
+                class_prompts.extend([tmpl.format(l3_clean) for tmpl in base_templates])
+
+        if use_descriptive:
+            preview_count = min(2, len(class_prompts))
+            print(f"[gen_prompts] {l3_clean}: {class_prompts[:preview_count]}")
+
+        prompts.extend(class_prompts)
 
     return prompts, templates_per_class

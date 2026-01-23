@@ -199,4 +199,22 @@ def l2_names_to_l3(l2_names):
     l3_names = [n for n, _ in l3_pairs]
     l3_ids = [i for _, i in l3_pairs]
     return l3_names, l3_ids
+
+
+def build_l3_to_l2_map():
+    """
+    Build L3->L2 id mapping and ordered L2 names.
+
+    Returns:
+        l3_to_l2: list[int] indexed by L3 id -> L2 id
+        l2_names: list[str] indexed by L2 id -> name
+    """
+    # Order L2 names by their numeric id.
+    l2_names = [name for name, _ in sorted(NAME_LABEL_L2.items(), key=lambda kv: kv[1])]
+
+    # Order L3 names by their L3 id, then map to L2 id.
+    l3_pairs = sorted(REASSIGN_NAME_LABEL_L3L2.items(), key=lambda kv: kv[1][0])
+    l3_to_l2 = [int(l2_id) for _, (_, l2_id) in l3_pairs]
+
+    return l3_to_l2, l2_names
     

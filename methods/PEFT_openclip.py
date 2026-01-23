@@ -2,8 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import argparse
+from typing import Optional, Dict
 from .method import FSCLIPmethod
 from .utils import cls_acc
+from aihab_utils.evaluation import L2MetricsAccumulator
 from tqdm import tqdm
 from collections import defaultdict
 from torcheval.metrics import MulticlassF1Score, MulticlassConfusionMatrix
@@ -43,7 +45,14 @@ def _compute_text_weights_from_tokens(model, prompt_tokens, num_classes: int, nu
     return text_feats.t().contiguous()
 
 
-def _run_validation(model, loader, text_weights, device, return_confusion_matrix: bool = False):
+def _run_validation(
+    model,
+    loader,
+    text_weights,
+    device,
+    return_confusion_matrix: bool = False,
+    l2_eval_ctx: Optional[Dict] = None,
+):
     model.eval()
     total_loss, total_top1, total_top3, total_seen, batches = 0.0, 0, 0, 0, 0
     y_true_all, y_pred_all = [], []
@@ -52,6 +61,17 @@ def _run_validation(model, loader, text_weights, device, return_confusion_matrix
     num_classes = int(text_weights.shape[1])
     f1_metric = MulticlassF1Score(num_classes=num_classes, average="weighted")
     cm_metric = MulticlassConfusionMatrix(num_classes=num_classes) if return_confusion_matrix else None
+
+    l2_acc = None
+    if l2_eval_ctx is not None:
+        l2_acc = L2MetricsAccumulator(
+            l3_to_l2=l2_eval_ctx["l3_to_l2"],
+            num_l2=l2_eval_ctx["num_l2"],
+            reduce=l2_eval_ctx.get("reduce", "mean"),
+            topk=l2_eval_ctx.get("topk", (1, 3)),
+            mode=l2_eval_ctx.get("mode", "argmax"),
+            return_confusion_matrix=l2_eval_ctx.get("return_confusion_matrix", False),
+        )
 
     with torch.no_grad():
         for images, targets in loader:
@@ -79,6 +99,8 @@ def _run_validation(model, loader, text_weights, device, return_confusion_matrix
             f1_metric.update(preds, targets)
             if cm_metric is not None:
                 cm_metric.update(preds, targets)
+            if l2_acc is not None:
+                l2_acc.update(logits, targets)
 
     avg_loss = total_loss / max(batches, 1)
     avg_top1 = total_top1 / max(total_seen, 1)
@@ -88,12 +110,13 @@ def _run_validation(model, loader, text_weights, device, return_confusion_matrix
     y_pred_all = torch.cat(y_pred_all).numpy()
     mcc = float(matthews_corrcoef(y_true_all, y_pred_all))
 
+    l2_metrics = l2_acc.compute() if l2_acc is not None else None
 
     if cm_metric is None:
         confusion_matrix = None
-        return avg_loss, avg_top1, avg_top3, f1_weighted, mcc, confusion_matrix
+        return avg_loss, avg_top1, avg_top3, f1_weighted, mcc, confusion_matrix, l2_metrics
     confusion_matrix = cm_metric.compute().cpu().numpy()
-    return avg_loss, avg_top1, avg_top3, f1_weighted, mcc, confusion_matrix
+    return avg_loss, avg_top1, avg_top3, f1_weighted, mcc, confusion_matrix, l2_metrics
 
 
 class FTOpenCLIP(FSCLIPmethod):
@@ -122,6 +145,35 @@ class FTOpenCLIP(FSCLIPmethod):
         ft_cfg = cfg['finetune']
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = model.to(device)    # perhaps we can skip this, as we have loaded the model on device in model init
+
+        # Optional L2 evaluation context (only for full label set).
+        l2_eval_ctx = None
+        eval_l2 = bool(cfg.get('finetune', {}).get('eval_l2', False))
+        if eval_l2:
+            subset_l2_names = cfg.get('subset_l2_names', []) or []
+            if isinstance(subset_l2_names, str):
+                subset_l2_names = [subset_l2_names]
+            if len(subset_l2_names) > 0:
+                print("[warn] L2 eval disabled because subset_l2_names is set.")
+                eval_l2 = False
+
+        if eval_l2:
+            from data import build_l3_to_l2_map
+            l3_to_l2, l2_names = build_l3_to_l2_map()
+            if len(l3_to_l2) != int(text_weights.shape[1]):
+                print("[warn] L2 eval disabled due to L3 mapping size mismatch.")
+            else:
+                l2_mode = str(ft_cfg.get("l2_eval_mode", "argmax")).lower()
+                l2_topk = (1,) if l2_mode == "argmax" else (1, 3)
+                l2_eval_ctx = {
+                    "l3_to_l2": torch.tensor(l3_to_l2, device=device, dtype=torch.long),
+                    "num_l2": len(l2_names),
+                    "l2_names": l2_names,
+                    "reduce": "mean",
+                    "topk": l2_topk,
+                    "mode": l2_mode,
+                    "return_confusion_matrix": False,
+                }
 
         # Set up the trainable layers
         unlocked_groups = int(ft_cfg.get('unlocked_groups', 1))
@@ -225,9 +277,21 @@ class FTOpenCLIP(FSCLIPmethod):
                             )
                     else:
                         text_weights_val = text_weights
-                    val_loss, val_top1_acc, val_top3_acc, val_f1, val_mcc, val_cm = _run_validation(
-                        model, val_loader, text_weights_val, device, return_confusion_matrix=False)
+                    val_loss, val_top1_acc, val_top3_acc, val_f1, val_mcc, val_cm, val_l2 = _run_validation(
+                        model,
+                        val_loader,
+                        text_weights_val,
+                        device,
+                        return_confusion_matrix=False,
+                        l2_eval_ctx=l2_eval_ctx,
+                    )
                     print(f"[val epoch {train_idx+1}] loss={val_loss:.4f}, top1_acc={val_top1_acc:.4f}, top3_acc={val_top3_acc:.4f}, f1={val_f1:.4f}, mcc={val_mcc:.4f}")
+                    if val_l2 is not None:
+                        msg = f"[val epoch {train_idx+1} L2] top1={val_l2['top1']:.4f}, "
+                        if "top3" in val_l2:
+                            msg += f"top3={val_l2['top3']:.4f}, "
+                        msg += f"f1={val_l2['f1']:.4f}, mcc={val_l2['mcc']:.4f}"
+                        print(msg)
                 else:
                     print(f"[val epoch {train_idx+1}] skipped (val_loader=None)")
 
@@ -245,9 +309,21 @@ class FTOpenCLIP(FSCLIPmethod):
                     )
             else:
                 text_weights_test = text_weights
-            test_loss, test_top1_acc, test_top3_acc, test_f1, test_mcc, test_cm = _run_validation(
-                model, test_loader, text_weights_test, device, return_confusion_matrix=True)
+            test_loss, test_top1_acc, test_top3_acc, test_f1, test_mcc, test_cm, test_l2 = _run_validation(
+                model,
+                test_loader,
+                text_weights_test,
+                device,
+                return_confusion_matrix=True,
+                l2_eval_ctx=l2_eval_ctx,
+            )
             print(f"[test] loss={test_loss:.4f}, top1_acc={test_top1_acc:.4f}, top3_acc={test_top3_acc:.4f}, f1={test_f1:.4f}, mcc={test_mcc:.4f}")
+            if test_l2 is not None:
+                msg = f"[test L2] top1={test_l2['top1']:.4f}, "
+                if "top3" in test_l2:
+                    msg += f"top3={test_l2['top3']:.4f}, "
+                msg += f"f1={test_l2['f1']:.4f}, mcc={test_l2['mcc']:.4f}"
+                print(msg)
         else:
             print("[test] skipped (test_loader=None)")
             
