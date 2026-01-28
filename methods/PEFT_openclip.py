@@ -5,7 +5,7 @@ import argparse
 from typing import Optional, Dict
 from .method import FSCLIPmethod
 from .utils import cls_acc
-from aihab_utils.evaluation import L2MetricsAccumulator
+from aihab_utils.evaluation import L2MetricsAccumulator, ClassificationTracker
 from tqdm import tqdm
 from collections import defaultdict
 from torcheval.metrics import MulticlassF1Score, MulticlassConfusionMatrix
@@ -51,6 +51,7 @@ def _run_validation(
     text_weights,
     device,
     return_confusion_matrix: bool = False,
+    cls_track: bool = False, 
     l2_eval_ctx: Optional[Dict] = None,
 ):
     model.eval()
@@ -61,6 +62,7 @@ def _run_validation(
     num_classes = int(text_weights.shape[1])
     f1_metric = MulticlassF1Score(num_classes=num_classes, average="weighted")
     cm_metric = MulticlassConfusionMatrix(num_classes=num_classes) if return_confusion_matrix else None
+    cls_tracker = ClassificationTracker() if cls_track else None
 
     l2_acc = None
     if l2_eval_ctx is not None:
@@ -74,7 +76,14 @@ def _run_validation(
         )
 
     with torch.no_grad():
-        for images, targets in loader:
+        for batch in loader:
+            if isinstance(batch, (list, tuple)) and len(batch) == 3:
+                images, targets, metadata = batch
+            elif isinstance(batch, (list, tuple)) and len(batch) == 2:
+                images, targets = batch
+                metadata = None
+            else:
+                raise ValueError("Expected batch to be (images, targets) or (images, targets, metadata).")
             images, targets = images.to(device), targets.to(device)
             feats = model.encode_image(images)
             feats = F.normalize(feats, dim=-1)
@@ -99,6 +108,9 @@ def _run_validation(
             f1_metric.update(preds, targets)
             if cm_metric is not None:
                 cm_metric.update(preds, targets)
+            if cls_tracker is not None:
+                _, top3_pred_indices, top3_probs = cls_tracker.top3_metrics(logits, targets)
+                cls_tracker.track_classification(preds, targets, top3_pred_indices, top3_probs, metadata)
             if l2_acc is not None:
                 l2_acc.update(logits, targets)
 
@@ -111,6 +123,9 @@ def _run_validation(
     mcc = float(matthews_corrcoef(y_true_all, y_pred_all))
 
     l2_metrics = l2_acc.compute() if l2_acc is not None else None
+
+    if cls_tracker is not None:
+        cls_tracker.save_classification()
 
     if cm_metric is None:
         confusion_matrix = None
@@ -315,6 +330,7 @@ class FTOpenCLIP(FSCLIPmethod):
                 text_weights_test,
                 device,
                 return_confusion_matrix=True,
+                cls_track=True,
                 l2_eval_ctx=l2_eval_ctx,
             )
             print(f"[test] loss={test_loss:.4f}, top1_acc={test_top1_acc:.4f}, top3_acc={test_top3_acc:.4f}, f1={test_f1:.4f}, mcc={test_mcc:.4f}")

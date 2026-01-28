@@ -6,6 +6,9 @@ import torch
 from typing import Sequence, Union
 from torcheval.metrics import MulticlassF1Score, MulticlassConfusionMatrix
 from sklearn.metrics import matthews_corrcoef
+from data import REASSIGN_LABEL_NAME_L3
+import pandas as pd
+import torch.nn.functional as F
 
 
 def draw_cm(cm, label_list) -> None:
@@ -245,3 +248,100 @@ class L2MetricsAccumulator:
             metrics["cm"] = self.cm_metric.compute().cpu().numpy()
 
         return metrics
+
+
+class ClassificationTracker:
+    """
+    Track the classcification.
+    """
+    def __init__(self) -> None:
+        self.misclassified = []
+        self.accurate_classified = []
+    
+    def top3_metrics(self, outputs, labels):
+        top3_pred_indices = torch.topk(outputs, 3, dim=1).indices
+
+        # Convert logits to probabilities
+        probabilities = F.softmax(outputs, dim=1)
+
+        # Get the probabilities corresponding to the top-3 indices
+        top3_probs = torch.gather(probabilities, 1, top3_pred_indices)
+
+        # top3_pred_indices = top3_pred_indices.cpu().numpy()
+        # top3_probs = top3_probs.cpu().numpy()
+        top3_correct = torch.sum(torch.any(top3_pred_indices == labels.unsqueeze(1), dim=1))
+        return top3_correct, top3_pred_indices, top3_probs
+    
+    def track_classification(self, predictions, labels, top3_labels, top3_probs, metadata):
+        """
+        :param predictions: predicted labels in a batch data
+        :param labels: the ground truth labels in a batch data
+        :param top3_labels: top 3 labels in a batch data
+        :param top3_probs: top 3 probabilities in a batch data
+        :param metadata: the metadata associated to the batch data
+        :return: a list of misclassified sample details
+        """
+        for i in range(len(labels)):
+            instance_result = {
+                'file_name': metadata['file_name'][i],
+                'ground_truth_num_label': labels[i].item(),
+                'ground_truth_word_label': metadata['plot_word_label'][i],
+                'predicted_label': predictions[i].item(),
+                'predicted_word_label': REASSIGN_LABEL_NAME_L3[predictions[i].item()],
+                'top3_predictions': [
+                    {'label': int(top3_labels[i][j]), 'probability': float(top3_probs[i][j])}
+                    for j in range(3)
+                ],
+                'dataset': metadata['image_source'][i]
+            }
+
+            if predictions[i] != labels[i]:
+                self.misclassified.append(instance_result)
+            else:
+                self.accurate_classified.append(instance_result)
+    
+    def save_classification(self):
+        """
+        Save classification results to CSVs.
+        :return:
+        """
+
+        def flatten_instance_result(instance_results):
+            """
+            Flatten the nested top-3 predictions into a format suitable for CSV.
+            :param instance_results: List of instance results (either misclassified or accurate).
+            """
+            flat_data = []
+            for instance in instance_results:
+                # Base information
+                base_info = {
+                    'file_name': instance['file_name'],
+                    'ground_truth_num_label': instance['ground_truth_num_label'],
+                    'ground_truth_word_label': instance['ground_truth_word_label'],
+                    'predicted_label': instance['predicted_label'],
+                    'predicted_word_label': instance['predicted_word_label'],
+                    'dataset': instance['dataset'],
+                }
+
+                # Flatten top-3 predictions
+                for i, top3_entry in enumerate(instance['top3_predictions']):
+                    base_info[f'top3_label_{i + 1}'] = top3_entry['label']
+                    base_info[f'top3_prob_{i + 1}'] = top3_entry['probability']
+
+                flat_data.append(base_info)
+
+            # Convert to DataFrame and save
+            df = pd.DataFrame(flat_data)
+            return df
+
+        if self.misclassified:
+            mis_df = flatten_instance_result(self.misclassified)
+            wandb.log({"Misclassifications": wandb.Table(dataframe=mis_df)})
+        else:
+            print('No misclassified samples')
+
+        if self.accurate_classified:
+            cor_df = flatten_instance_result(self.accurate_classified)
+            wandb.log({"Corclassifications": wandb.Table(dataframe=cor_df)})
+        else:
+            print('No correctly classified samples')

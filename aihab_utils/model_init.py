@@ -195,7 +195,7 @@ def inspect(cfg, train_tf, test_tf, dl_tr, dl_val, dl_te, info: dict, clip_bundl
 
     # Show one batch from test
     print("\n==== Test Batch Sample ====")
-    xb2, yb2 = next(iter(dl_te))
+    xb2, yb2, _ = next(iter(dl_te))
     print(f"images: {tuple(xb2.shape)}  dtype={xb2.dtype}  device={xb2.device}")
     print(f"labels: {yb2[:max_show].tolist()}  (showing first {min(max_show, len(yb2))})")
     lbl_names2 = [REASSIGN_LABEL_NAME_L3[int(y)] for y in yb2[:max_show].tolist()]

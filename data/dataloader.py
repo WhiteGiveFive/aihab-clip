@@ -365,18 +365,48 @@ class CSArrayDataset(Dataset):
     Helper function for the aihab-clip project.
     Simple Dataset wrapper over preloaded arrays from image_loader.
     Returns (image, label) pairs suitable for CLIP feature extraction.
-    Optionally keeps file_names for inspection.
+    Optionally returns metadata for validation/testing.
     """
     def __init__(self,
                  images: np.ndarray,
                  labels: np.ndarray,
                  file_names: List[str],
                  selected_idx: np.ndarray,
-                 transform):
+                 transform,
+                 plot_word_labels=None,
+                 poly_labels=None,
+                 poly_word_labels=None,
+                 plot_idx=None,
+                 image_sources=None,
+                 l2_labels=None,
+                 return_metadata: bool = False):
         self.images = images[selected_idx]
         self.labels = labels[selected_idx]
         self.file_names = [file_names[i] for i in selected_idx]
         self.transform = transform
+        self.return_metadata = return_metadata
+
+        def _sel(arr):
+            if arr is None:
+                return None
+            if isinstance(arr, list):
+                return [arr[i] for i in selected_idx]
+            return np.asarray(arr)[selected_idx]
+
+        self.plot_word_labels = _sel(plot_word_labels)
+        self.poly_labels = _sel(poly_labels)
+        self.poly_word_labels = _sel(poly_word_labels)
+        self.plot_idx = _sel(plot_idx)
+        self.image_sources = _sel(image_sources)
+
+        if l2_labels is not None:
+            self.l2_labels = _sel(l2_labels)
+        elif self.plot_word_labels is not None:
+            self.l2_labels = np.array(
+                [convert_to_coarse_label(w) for w in self.plot_word_labels]
+            )
+        else:
+            self.l2_labels = None
 
     def __len__(self):
         return len(self.images)
@@ -386,7 +416,23 @@ class CSArrayDataset(Dataset):
         lbl = int(self.labels[idx])
         if self.transform is not None:
             img = self.transform(img)
-        return img, lbl
+        if not self.return_metadata:
+            return img, lbl
+
+        poly_label = -1
+        if self.poly_labels is not None:
+            poly_label = self.poly_labels[idx] if self.poly_labels[idx] is not None else -1
+
+        metadata = {
+            "l2_label": int(self.l2_labels[idx]) if self.l2_labels is not None else -1,
+            "poly_label": int(poly_label) if poly_label is not None else -1,
+            "plot_word_label": self.plot_word_labels[idx] if self.plot_word_labels is not None else "",
+            "poly_word_label": self.poly_word_labels[idx] if self.poly_word_labels is not None else "",
+            "file_name": self.file_names[idx],
+            "plot_idx": self.plot_idx[idx] if self.plot_idx is not None else "",
+            "image_source": self.image_sources[idx] if self.image_sources is not None else "",
+        }
+        return img, lbl, metadata
 
 def build_loaders(cfg,
                   train_tf_override=None,
@@ -444,6 +490,7 @@ def build_loaders(cfg,
         poly_word_labels_tr = [x for x, m in zip(poly_word_labels_tr, mask_tr) if m]
         file_names_tr = [x for x, m in zip(file_names_tr, mask_tr) if m]
         plot_idx_tr = np.asarray(plot_idx_tr)[mask_tr]
+        src_tr = [x for x, m in zip(src_tr, mask_tr) if m]
 
         mask_te = np.isin(labels_te, subset_l3_ids)
         images_te = images_te[mask_te]
@@ -453,6 +500,7 @@ def build_loaders(cfg,
         poly_word_labels_te = [x for x, m in zip(poly_word_labels_te, mask_te) if m]
         file_names_te = [x for x, m in zip(file_names_te, mask_te) if m]
         plot_idx_te = np.asarray(plot_idx_te)[mask_te]
+        src_te = [x for x, m in zip(src_te, mask_te) if m]
 
     # Select indices
     seed = int(cfg.get('seed', 1))
@@ -475,9 +523,25 @@ def build_loaders(cfg,
     sel_te = np.arange(images_te.shape[0])
 
     # Build datasets and loaders
-    ds_tr = CSArrayDataset(images_tr, labels_tr, file_names_tr, sel_tr, transform=train_tf)
-    ds_val = CSArrayDataset(images_tr, labels_tr, file_names_tr, val_idx, transform=test_tf)
-    ds_te = CSArrayDataset(images_te, labels_te, file_names_te, sel_te, transform=test_tf)
+
+    ds_tr = CSArrayDataset(
+        images_tr, labels_tr, file_names_tr, sel_tr, transform=train_tf,
+        plot_word_labels=plot_word_labels_tr, poly_labels=poly_labels_tr,
+        poly_word_labels=poly_word_labels_tr, plot_idx=plot_idx_tr,
+        image_sources=src_tr, return_metadata=False,
+    )
+    ds_val = CSArrayDataset(
+        images_tr, labels_tr, file_names_tr, val_idx, transform=test_tf,
+        plot_word_labels=plot_word_labels_tr, poly_labels=poly_labels_tr,
+        poly_word_labels=poly_word_labels_tr, plot_idx=plot_idx_tr,
+        image_sources=src_tr, return_metadata=True,
+    )
+    ds_te = CSArrayDataset(
+        images_te, labels_te, file_names_te, sel_te, transform=test_tf,
+        plot_word_labels=plot_word_labels_te, poly_labels=poly_labels_te,
+        poly_word_labels=poly_word_labels_te, plot_idx=plot_idx_te,
+        image_sources=src_te, return_metadata=True,
+    )
 
     dl_tr = DataLoader(ds_tr,
                        batch_size=cfg['data']['batch_size'],
