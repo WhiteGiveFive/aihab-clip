@@ -201,6 +201,55 @@ def l2_names_to_l3(l2_names):
     return l3_names, l3_ids
 
 
+def l3_values_to_ids(values):
+    """
+    Convert L3 subset values (names or ids) to ordered L3 ids + names.
+    Accepts ints (ids) and strings (names). Numeric strings are treated as ids.
+    """
+    if not values:
+        return [], []
+
+    if isinstance(values, (str, int)):
+        values = [values]
+
+    l3_name_to_id = {k.lower(): v for k, v in REASSIGN_NAME_LABEL_L3.items()}
+    l3_id_to_name = {v: k for k, v in REASSIGN_NAME_LABEL_L3.items()}
+
+    l3_ids = []
+    missing_names = []
+    for v in values:
+        if isinstance(v, int):
+            l3_ids.append(v)
+            continue
+        if isinstance(v, str):
+            v_str = v.strip()
+            if v_str.isdigit():
+                l3_ids.append(int(v_str))
+                continue
+            key = v_str.lower()
+            if key in l3_name_to_id:
+                l3_ids.append(l3_name_to_id[key])
+            else:
+                missing_names.append(v)
+            continue
+        raise ValueError(f"Unsupported L3 subset value type: {type(v)} ({v})")
+
+    if missing_names:
+        raise ValueError(
+            f"Unknown L3 names: {missing_names}. Expected one of: {list(REASSIGN_NAME_LABEL_L3.values())}"
+        )
+
+    bad_ids = [i for i in l3_ids if i not in l3_id_to_name]
+    if bad_ids:
+        raise ValueError(
+            f"Unknown L3 ids: {bad_ids}. Expected 0..{max(l3_id_to_name.keys())}"
+        )
+
+    l3_ids = sorted(set(l3_ids))
+    l3_names = [l3_id_to_name[i] for i in l3_ids]
+    return l3_names, l3_ids
+
+
 def build_l3_to_l2_map():
     """
     Build L3->L2 id mapping and ordered L2 names.

@@ -165,11 +165,11 @@ class FTOpenCLIP(FSCLIPmethod):
         l2_eval_ctx = None
         eval_l2 = bool(cfg.get('finetune', {}).get('eval_l2', False))
         if eval_l2:
-            subset_l2_names = cfg.get('subset_l2_names', []) or []
-            if isinstance(subset_l2_names, str):
-                subset_l2_names = [subset_l2_names]
-            if len(subset_l2_names) > 0:
-                print("[warn] L2 eval disabled because subset_l2_names is set.")
+            subset_l3 = cfg.get('subset_l3', []) or []
+            if isinstance(subset_l3, (str, int)):
+                subset_l3 = [subset_l3]
+            if len(subset_l3) > 0:
+                print("[warn] L2 eval disabled because subset_l3 is set.")
                 eval_l2 = False
 
         if eval_l2:

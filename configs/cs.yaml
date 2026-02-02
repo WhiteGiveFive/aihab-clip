@@ -16,7 +16,7 @@ data:
   shuffle: True
   num_workers: 0
   data_split:
-    valid_split: 0.1
+    valid_split: 0.01
     split_seed: 42
   use_l2_label: False
   preprocessing:

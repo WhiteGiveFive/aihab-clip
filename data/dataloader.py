@@ -1,5 +1,5 @@
 from .dataset import convert_to_coarse_label, image_loader, data_partition, HABDATA, HABMETADATA, HABMETADATA_SUBSET
-from . import l2_names_to_l3
+from . import l2_names_to_l3, l3_values_to_ids
 import torch
 from torchvision import transforms
 from torchvision.transforms import v2
@@ -448,10 +448,10 @@ def build_loaders(cfg,
         test_tf = build_clip_transforms(cfg['data']['preprocessing'], is_train=False, resolution=resolution)
 
     # Resolve subset config (optional)
-    subset_l2_names = cfg.get('subset_l2_names', []) or []
-    if isinstance(subset_l2_names, str):
-        subset_l2_names = [subset_l2_names]
-    subset_l3_names, subset_l3_ids = l2_names_to_l3(subset_l2_names)
+    subset_l3 = cfg.get('subset_l3', []) or []
+    if isinstance(subset_l3, (str, int)):
+        subset_l3 = [subset_l3]
+    subset_l3_names, subset_l3_ids = l3_values_to_ids(subset_l3)
     use_subset = len(subset_l3_ids) > 0
 
     # Bulk load train split
@@ -578,11 +578,11 @@ def build_loaders(cfg,
         'val_split': val_ratio,
         'selection_by_class': selection_by_class,
         'subset_enabled': use_subset,
-        'subset_l2_names': subset_l2_names,
+        'subset_l3': subset_l3,
         'subset_l3_ids': subset_l3_ids,
         'subset_l3_names': subset_l3_names,
     }
     if use_subset:
-        print(f'dataloader subset: l2={subset_l2_names} l3_ids={subset_l3_ids} l3_names={subset_l3_names}')
+        print(f'dataloader subset: l3={subset_l3} l3_ids={subset_l3_ids} l3_names={subset_l3_names}')
 
     return dl_tr, dl_val, dl_te, train_tf, test_tf, info

@@ -47,4 +47,4 @@ aug_views: 3               # number of augmentation views to cache (use 300 for 
 # ------ Training mode (loader control) ------
 shots: 0                   # 0 (or <1) -> full-data; N>0 -> few-shot per class
 seed: 1
-subset_l2_names: []  # e.g. ['Grassland', 'Wetland']; empty => use all L3 classes
+subset_l3: [10, 12]  # e.g. ['Grassland', 'Wetland'] or [5, 6, 7]; empty => use all L3 classes
