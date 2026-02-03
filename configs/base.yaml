@@ -16,6 +16,15 @@ finetune:
   checkpoint: null             # optional path to saved projector weights
   output_dir: './results'      # where to write ProLIP outputs/checkpoints, not used at this moment.
   require_cached_features: True  # ensure feature cache exists before training
+  save_model: False            # save final OpenCLIP fine-tuned checkpoint (last epoch)
+  save_model_dir: './model_ckpt'  # folder for OpenCLIP fine-tuned checkpoints
+  save_optimizer: True         # include optimizer state in checkpoint
+  save_scheduler: True         # include scheduler state in checkpoint
+  cache_embeddings: True      # cache OpenCLIP embeddings for visualization after training or from checkpoint
+  cache_embeddings_split: 'test'  # which split to cache: train | val | test, but train will not return metadata
+  cache_embeddings_dir: './feat_cache_vis'  # output folder for embedding caches
+  cache_embeddings_normalize: True  # L2-normalize embeddings before saving
+  cache_embeddings_checkpoint: null  # optional: path to checkpoint when finetune.enabled=False
 wandb_project: 'aihab-clip'
 
 # ------ CLIP / Model settings ------
@@ -47,4 +56,4 @@ aug_views: 3               # number of augmentation views to cache (use 300 for 
 # ------ Training mode (loader control) ------
 shots: 0                   # 0 (or <1) -> full-data; N>0 -> few-shot per class
 seed: 1
-subset_l3: [10, 12]  # e.g. ['Grassland', 'Wetland'] or [5, 6, 7]; empty => use all L3 classes
+subset_l3: []  # e.g. ['Grassland', 'Wetland'] or [5, 6, 7]; empty => use all L3 classes

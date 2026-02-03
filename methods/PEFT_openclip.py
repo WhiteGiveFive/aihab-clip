@@ -6,6 +6,8 @@ from typing import Optional, Dict
 from .method import FSCLIPmethod
 from .utils import cls_acc
 from aihab_utils.evaluation import L2MetricsAccumulator, ClassificationTracker
+from aihab_utils.checkpointing import save_openclip_checkpoint
+from aihab_utils.feature_cache import cache_openclip_embeddings
 from tqdm import tqdm
 from collections import defaultdict
 from torcheval.metrics import MulticlassF1Score, MulticlassConfusionMatrix
@@ -345,6 +347,37 @@ class FTOpenCLIP(FSCLIPmethod):
             
         torch.cuda.empty_cache()
         
+        # Save final checkpoint if configured
+        saved_checkpoint_path = None
+        if bool(ft_cfg.get('save_model', False)):
+            try:
+                saved_checkpoint_path = save_openclip_checkpoint(
+                    cfg=cfg,
+                    model=model,
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    epoch=int(cfg.get('train_epoch', 0)),
+                )
+                print(f"[ckpt] saved -> {saved_checkpoint_path}")
+            except Exception as exc:
+                print(f"[ckpt] save failed: {exc}")
+        
+        # Cache the embeddings if configured
+        cache_embeddings = bool(ft_cfg.get('cache_embeddings', False))
+        cache_split = str(ft_cfg.get('cache_embeddings_split', 'test')).lower()
+
+        if cache_embeddings:
+            split_loader = {"train": train_loader, "val": val_loader, "test": test_loader}.get(cache_split, test_loader)
+            if split_loader is None:
+                print(f"[warn] cache_embeddings requested but loader for split '{cache_split}' is None.")
+            else:
+                cache_openclip_embeddings(
+                    cfg=cfg,
+                    model=model,
+                    loader=split_loader,
+                    split=cache_split,
+                    checkpoint_path=saved_checkpoint_path)
+
         if return_valid:
             return val_loss, val_top1_acc, val_top3_acc, val_f1, val_mcc, val_cm
         else:
