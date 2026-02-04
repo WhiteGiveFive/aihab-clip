@@ -15,12 +15,17 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+.codex/
+.specify/
 
 # --- Checkpoints / logs ---
 logs/
 wandb/
 runs/
 *.log
+plan_tasks/
+references/
+results_lr/
 
 # --- Data: ignore all, re-allow specific tracked files ---
 /data/*
@@ -41,6 +46,10 @@ runs/
 
 # --- Notebooks checkpoints ---
 .ipynb_checkpoints/
+notebooks/*
 
 # --- Torch / CUDA caches ---
 .cache/
+
+# --- Embedding cahes ---
+feat_cache_vis/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_cs/
