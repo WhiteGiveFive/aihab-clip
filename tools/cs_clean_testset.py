@@ -49,21 +49,16 @@ def parse_args() -> argparse.Namespace:
 
 def _run_score(cache_dir: Path, output: Path):
     from tools.outlier_cleaning import (
-        compute_centroids,
         load_cache,
         resolve_cache_paths,
-        score_centroid_distance,
+        SingleCentroidScorer,
     )
 
     cache_paths = resolve_cache_paths(cache_dir)
     embeddings, labels, metadata = load_cache(cache_paths)
-    centroids = compute_centroids(embeddings, labels)
-    scores = score_centroid_distance(
-        embeddings=embeddings,
-        labels=labels,
-        centroids=centroids,
-        metadata=metadata,
-    )
+    scorer = SingleCentroidScorer(embeddings, labels, metadata)
+    centroids = scorer.compute_centroids()
+    scores = scorer.score_centroid_distance()
 
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
