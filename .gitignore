@@ -52,4 +52,4 @@ notebooks/*
 .cache/
 
 # --- Embedding cahes ---
-feat_cache_vis/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_cs/
+# feat_cache_vis/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_cs/

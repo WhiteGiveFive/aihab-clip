@@ -1,0 +1,9 @@
+data:
+  dataset_paths:
+    - './data/CS_Xplots_2019_2023_train'
+  index_file_names:
+    - 'CS_Xplots_2019_23_NEW02OCT24.csv'
+  test_dataset_paths:
+    - './data/CS_Xplots_2019_2023_test'
+  test_index_file_names:
+    - 'CS_Xplots_2019_23_NEW02OCT24.csv'

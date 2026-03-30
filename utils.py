@@ -7,7 +7,6 @@ from tqdm import tqdm
 from typing import List
 import torch
 import numpy as np
-import clip
 
 def warp_tqdm(data_loader, disable_tqdm):
     if disable_tqdm:
@@ -29,6 +28,8 @@ def compute_confidence_interval(data, axis=0):
     return m, pm
 
 def clip_classifier(classnames, template, clip_model):
+    import clip
+
     with torch.no_grad():
         device = next(clip_model.parameters()).device
         clip_weights = []

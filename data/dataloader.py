@@ -4,7 +4,6 @@ import torch
 from torchvision import transforms
 from torchvision.transforms import v2
 from torch.utils.data import Dataset, DataLoader, Subset
-import timm
 import numpy as np
 from sklearn.model_selection import train_test_split
 
@@ -65,6 +64,11 @@ def _data_preprocessing(args: dict, is_train: bool):
     return v2.Compose(transform_list)
 
 def timm_transforms(is_train: bool):
+    try:
+        import timm
+    except ImportError as exc:
+        raise ImportError("timm_transforms requires the `timm` package in the active environment.") from exc
+
     model = timm.create_model(
         'vit_large_patch16_siglip_384',
         pretrained=True,
