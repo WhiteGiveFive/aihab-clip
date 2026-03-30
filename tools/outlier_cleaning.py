@@ -173,6 +173,35 @@ def load_cache(paths: CachePaths) -> Tuple[torch.Tensor, torch.Tensor, pd.DataFr
     return embeddings, labels, metadata
 
 
+def _validate_bottom_quantile(bottom_quantile: float) -> float:
+    """
+    Validate the per-class bottom-tail quantile threshold used for outlier flags.
+    """
+    q = float(bottom_quantile)
+    if not (0.0 < q < 1.0):
+        raise ValueError(
+            f"bottom_quantile must be in the open interval (0, 1), got {bottom_quantile}."
+        )
+    return q
+
+
+def _default_bottom_flag_col(bottom_quantile: float) -> str:
+    """
+    Build default outlier-flag column name from quantile.
+
+    Examples:
+      0.05 -> is_bottom_5pct
+      0.10 -> is_bottom_10pct
+      0.025 -> is_bottom_2p5pct
+    """
+    pct = float(bottom_quantile) * 100.0
+    if abs(pct - round(pct)) < 1e-9:
+        pct_str = str(int(round(pct)))
+    else:
+        pct_str = f"{pct:.2f}".rstrip("0").rstrip(".").replace(".", "p")
+    return f"is_bottom_{pct_str}pct"
+
+
 class SingleCentroidScorer:
     """
     Single-centroid scorer that owns validated tensors/metadata and cached centroids.
@@ -293,11 +322,17 @@ class SingleCentroidScorer:
         return self._centroids
 
     def score_centroid_distance(
-        self, *, centroids: Optional[CentroidResult] = None
+        self,
+        *,
+        centroids: Optional[CentroidResult] = None,
+        bottom_quantile: float = 0.05,
     ) -> pd.DataFrame:
         """
         Score points by cosine distance to true-class centroid.
         """
+        bottom_quantile = _validate_bottom_quantile(bottom_quantile)
+        bottom_flag_col = _default_bottom_flag_col(bottom_quantile)
+
         centroid_result = centroids
         if centroid_result is None:
             centroid_result = self._centroids if self._centroids is not None else self.compute_centroids()
@@ -359,10 +394,10 @@ class SingleCentroidScorer:
         )
         scores["pct_rank_in_class"] = scores["rank_in_class"] / scores["class_size"]
 
-        sim_p05 = scores.groupby("ground_truth_num_label")["sim_to_centroid"].transform(
-            lambda col: col.quantile(0.05)
+        sim_p = scores.groupby("ground_truth_num_label")["sim_to_centroid"].transform(
+            lambda col: col.quantile(bottom_quantile)
         )
-        scores["is_bottom_5pct"] = scores["sim_to_centroid"] <= sim_p05
+        scores[bottom_flag_col] = scores["sim_to_centroid"] <= sim_p
 
         out_columns = [
             "file_name",
@@ -374,7 +409,7 @@ class SingleCentroidScorer:
             "class_size",
             "rank_in_class",
             "pct_rank_in_class",
-            "is_bottom_5pct",
+            bottom_flag_col,
         ]
         return scores[out_columns].sort_values(
             by=["outlier_score", "ground_truth_num_label", "file_name"],
@@ -554,10 +589,14 @@ class MultiPrototypeScorer(SingleCentroidScorer):
         self,
         *,
         prototypes: Optional[MultiPrototypeResult] = None,
+        bottom_quantile: float = 0.05,
     ) -> pd.DataFrame:
         """
         Score points by cosine distance to nearest true-class prototype.
         """
+        bottom_quantile = _validate_bottom_quantile(bottom_quantile)
+        bottom_flag_col = _default_bottom_flag_col(bottom_quantile)
+
         prototype_result = prototypes
         if prototype_result is None:
             prototype_result = (
@@ -699,11 +738,11 @@ class MultiPrototypeScorer(SingleCentroidScorer):
         )
         scores["pct_rank_in_class"] = scores["rank_in_class"] / scores["class_size"]
 
-        sim_p05 = scores.groupby("ground_truth_num_label")["sim_to_prototype"].transform(
-            lambda col: col.quantile(0.05)
+        sim_p = scores.groupby("ground_truth_num_label")["sim_to_prototype"].transform(
+            lambda col: col.quantile(bottom_quantile)
         )
         # Same class-level outlier flag semantics as single-centroid scorer.
-        scores["is_bottom_5pct"] = scores["sim_to_prototype"] <= sim_p05
+        scores[bottom_flag_col] = scores["sim_to_prototype"] <= sim_p
 
         scores["rank_in_prototype"] = (
             scores.groupby(["ground_truth_num_label", "prototype_id"])["outlier_score"]
@@ -729,7 +768,7 @@ class MultiPrototypeScorer(SingleCentroidScorer):
             "class_size",
             "rank_in_class",
             "pct_rank_in_class",
-            "is_bottom_5pct",
+            bottom_flag_col,
             "method",
             "sim_to_prototype",
             "prototype_id",

@@ -77,7 +77,7 @@ def build_argparser() -> argparse.ArgumentParser:
     # UMAP hyperparameters
     parser.add_argument("--umap_neighbors", type=int, default=30, help="UMAP n_neighbors.")
     parser.add_argument("--umap_min_dist", type=float, default=0.1, help="UMAP min_dist.")
-    parser.add_argument("--umap_metric", type=str, default="euclidean", help="UMAP metric.")
+    parser.add_argument("--umap_metric", type=str, default="cosine", help="UMAP metric.")
 
     # t-SNE hyperparameters
     parser.add_argument("--tsne_perplexity", type=float, default=30.0, help="t-SNE perplexity.")

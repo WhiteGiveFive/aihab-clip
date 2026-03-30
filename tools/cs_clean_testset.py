@@ -80,6 +80,12 @@ def parse_args() -> argparse.Namespace:
         default=100,
         help="Maximum k-means iterations in multi-prototype mode.",
     )
+    p_score.add_argument(
+        "--bottom-quantile",
+        type=float,
+        default=0.05,
+        help="Per-class bottom-tail quantile for outlier flag (e.g., 0.05, 0.10).",
+    )
 
     # select
     p_sel = sub.add_parser("select", help="Select outliers given scores.csv and a rule")
@@ -111,6 +117,7 @@ def _run_score(
     random_state: int,
     n_init: int,
     max_iter: int,
+    bottom_quantile: float,
 ):
     from tools.outlier_cleaning import (
         load_cache,
@@ -124,11 +131,14 @@ def _run_score(
     if method == "single":
         scorer = SingleCentroidScorer(embeddings, labels, metadata)
         centroids = scorer.compute_centroids()
-        scores = scorer.score_centroid_distance()
+        scores = scorer.score_centroid_distance(
+            bottom_quantile=bottom_quantile,
+        )
         summary = {
             "method": "single",
             "num_classes_present": int(len(centroids.centroids)),
             "total_prototypes": int(len(centroids.centroids)),
+            "bottom_quantile": float(bottom_quantile),
         }
     elif method == "multi":
         scorer = MultiPrototypeScorer(embeddings, labels, metadata)
@@ -141,7 +151,10 @@ def _run_score(
             n_init=n_init,
             max_iter=max_iter,
         )
-        scores = scorer.score_prototype_distance(prototypes=prototypes)
+        scores = scorer.score_prototype_distance(
+            prototypes=prototypes,
+            bottom_quantile=bottom_quantile,
+        )
         total_prototypes = int(sum(prototypes.k_per_class.values()))
         num_classes_present = int(len(prototypes.prototypes))
         summary = {
@@ -149,6 +162,7 @@ def _run_score(
             "num_classes_present": num_classes_present,
             "total_prototypes": total_prototypes,
             "avg_k_per_class": float(total_prototypes / max(1, num_classes_present)),
+            "bottom_quantile": float(bottom_quantile),
         }
     else:
         raise ValueError(f"Unknown method '{method}'.")
@@ -181,6 +195,7 @@ def main(args: argparse.Namespace):
             random_state=args.random_state,
             n_init=args.n_init,
             max_iter=args.max_iter,
+            bottom_quantile=args.bottom_quantile,
         )
     elif args.cmd == "select":
         raise NotImplementedError("`select` is not implemented yet. Use `score` for now.")
