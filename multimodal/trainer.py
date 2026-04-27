@@ -224,6 +224,64 @@ def _evaluate(model: nn.Module, loader: DataLoader, num_classes: int, device: to
     }
 
 
+def _history_payload(train_loss: float,
+                     epoch: int,
+                     val_metrics: Mapping[str, object],
+                     test_metrics: Mapping[str, object] | None) -> Dict[str, float]:
+    entry: Dict[str, float] = {
+        "epoch": int(epoch),
+        "train_loss": float(train_loss),
+        # Legacy validation keys kept for backward compatibility.
+        "loss": float(val_metrics["loss"]),
+        "top1_acc": float(val_metrics["top1_acc"]),
+        "top3_acc": float(val_metrics["top3_acc"]),
+        "f1": float(val_metrics["f1"]),
+        "mcc": float(val_metrics["mcc"]),
+        # Explicit validation keys for clarity.
+        "val_loss": float(val_metrics["loss"]),
+        "val_top1_acc": float(val_metrics["top1_acc"]),
+        "val_top3_acc": float(val_metrics["top3_acc"]),
+        "val_f1": float(val_metrics["f1"]),
+        "val_mcc": float(val_metrics["mcc"]),
+    }
+    if test_metrics is not None:
+        entry.update(
+            {
+                "test_loss": float(test_metrics["loss"]),
+                "test_top1_acc": float(test_metrics["top1_acc"]),
+                "test_top3_acc": float(test_metrics["top3_acc"]),
+                "test_f1": float(test_metrics["f1"]),
+                "test_mcc": float(test_metrics["mcc"]),
+            }
+        )
+    return entry
+
+
+def _print_epoch_metrics(epoch: int,
+                         epochs: int,
+                         train_loss: float,
+                         val_metrics: Mapping[str, object],
+                         test_metrics: Mapping[str, object] | None) -> None:
+    message = (
+        f"[epoch {epoch}/{epochs}] "
+        f"train_loss={train_loss:.4f} "
+        f"val_loss={float(val_metrics['loss']):.4f} "
+        f"val_top1={float(val_metrics['top1_acc']):.4f} "
+        f"val_top3={float(val_metrics['top3_acc']):.4f} "
+        f"val_f1={float(val_metrics['f1']):.4f} "
+        f"val_mcc={float(val_metrics['mcc']):.4f}"
+    )
+    if test_metrics is not None:
+        message += (
+            f" test_loss={float(test_metrics['loss']):.4f}"
+            f" test_top1={float(test_metrics['top1_acc']):.4f}"
+            f" test_top3={float(test_metrics['top3_acc']):.4f}"
+            f" test_f1={float(test_metrics['f1']):.4f}"
+            f" test_mcc={float(test_metrics['mcc']):.4f}"
+        )
+    print(message)
+
+
 def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
     tables = load_joined_splits(cfg)
     mm_cfg = cfg.get("multimodal", {})
@@ -239,6 +297,8 @@ def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
     patience_limit = int(mm_cfg.get("patience", 10))
     lr = float(mm_cfg.get("lr", 1e-3))
     weight_decay = float(mm_cfg.get("weight_decay", 1e-4))
+    report_test_each_epoch = bool(mm_cfg.get("report_test_each_epoch", True))
+    print_epoch_metrics = bool(mm_cfg.get("print_epoch_metrics", True))
 
     train_loader = _build_dataloader(tables["train"], mode=mode, batch_size=batch_size, num_workers=num_workers, shuffle=True)
     val_loader = _build_dataloader(tables["val"], mode=mode, batch_size=batch_size, num_workers=num_workers, shuffle=False)
@@ -286,13 +346,14 @@ def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
             total_seen += len(targets)
 
         val_metrics = _evaluate(model, val_loader, int(tables["train"]["label_id"].nunique()), device)
-        history.append(
-            {
-                "epoch": epoch + 1,
-                "train_loss": total_loss / max(total_seen, 1),
-                **{k: float(v) for k, v in val_metrics.items() if k != "cm"},
-            }
-        )
+        test_metrics_epoch = None
+        if report_test_each_epoch:
+            test_metrics_epoch = _evaluate(model, test_loader, int(tables["train"]["label_id"].nunique()), device)
+
+        avg_train_loss = total_loss / max(total_seen, 1)
+        history.append(_history_payload(avg_train_loss, epoch + 1, val_metrics, test_metrics_epoch))
+        if print_epoch_metrics:
+            _print_epoch_metrics(epoch + 1, epochs, avg_train_loss, val_metrics, test_metrics_epoch)
         if val_metrics["top1_acc"] > best_acc:
             best_acc = float(val_metrics["top1_acc"])
             patience = 0
@@ -315,6 +376,7 @@ def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
                 "train_rows": int(len(tables["train"])),
                 "val_rows": int(len(tables["val"])),
                 "test_rows": int(len(tables["test"])),
+                "report_test_each_epoch": report_test_each_epoch,
                 "class_names": class_names,
                 "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
                 "history": history,

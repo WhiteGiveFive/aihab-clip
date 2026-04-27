@@ -21,6 +21,8 @@ The multimodal workflow runs in three stages:
 
 All three modes are evaluated on the same geo-matched sample universe for fair comparison.
 
+By default, the training loop now evaluates both validation and test splits after every epoch, prints those scalar metrics to the console, and stores them in `metrics.json`. Checkpoint selection still uses validation `top1_acc`, not test performance.
+
 ## Entry Point
 
 Use:
@@ -156,6 +158,8 @@ multimodal:
   export_image_embeddings: True
   build_joined_tables: True
   train_classifier: True
+  report_test_each_epoch: True
+  print_epoch_metrics: True
 ```
 
 ### Inspect Only
@@ -340,7 +344,22 @@ The classifier training stage reports:
 - `mcc`
 - confusion matrix
 
-Model selection is done on validation `top1_acc`.
+The saved `metrics.json` contains:
+
+- `history`: one entry per epoch
+- `val`: final validation metrics from the selected best checkpoint
+- `test`: final test metrics from the selected best checkpoint
+
+Per-epoch `history` entries contain:
+
+- `train_loss`
+- legacy validation keys: `loss`, `top1_acc`, `top3_acc`, `f1`, `mcc`
+- explicit validation keys: `val_loss`, `val_top1_acc`, `val_top3_acc`, `val_f1`, `val_mcc`
+- test keys when enabled: `test_loss`, `test_top1_acc`, `test_top3_acc`, `test_f1`, `test_mcc`
+
+During training, the full pipeline prints one line per epoch with train, validation, and test scalar metrics when `multimodal.print_epoch_metrics` is `True`.
+
+Model selection is still done on validation `top1_acc`.
 
 Geo features are standardized using train-split statistics only. Image embeddings are used as exported.
 
@@ -415,6 +434,18 @@ Those are later extensions, not part of this implementation.
   multimodal.dropout 0.2
 ```
 
+### Disable per-epoch test evaluation
+
+```bash
+--opts multimodal.report_test_each_epoch False
+```
+
+### Disable per-epoch console logging
+
+```bash
+--opts multimodal.print_epoch_metrics False
+```
+
 ## Example Runs
 
 ### 1. Default full pipeline with habitat-finetuned image features and raw concat
@@ -452,6 +483,18 @@ python multimodal_main.py \
   --base_config configs/multimodal_base.yaml \
   --dataset_config configs/multimodal_cs.yaml \
   --opts multimodal.fusion_mode geo_only
+```
+
+### 5. Image-only basline on the geo-matched subset with reused joined table
+
+```bash
+python multimodal_main.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs.yaml \
+  --opts \
+    multimodal.fusion_mode image_only \
+    multimodal.export_image_embeddings False \
+    multimodal.build_joined_tables False
 ```
 
 ## Environment Notes
