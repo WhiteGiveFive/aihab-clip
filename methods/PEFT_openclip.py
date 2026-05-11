@@ -326,13 +326,14 @@ class FTOpenCLIP(FSCLIPmethod):
                     )
             else:
                 text_weights_test = text_weights
+            track_classification = bool(ft_cfg.get('track_classification', True))
             test_loss, test_top1_acc, test_top3_acc, test_f1, test_mcc, test_cm, test_l2 = _run_validation(
                 model,
                 test_loader,
                 text_weights_test,
                 device,
                 return_confusion_matrix=True,
-                cls_track=True,
+                cls_track=track_classification,
                 l2_eval_ctx=l2_eval_ctx,
             )
             print(f"[test] loss={test_loss:.4f}, top1_acc={test_top1_acc:.4f}, top3_acc={test_top3_acc:.4f}, f1={test_f1:.4f}, mcc={test_mcc:.4f}")
