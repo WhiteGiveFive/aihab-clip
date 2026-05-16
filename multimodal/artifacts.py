@@ -84,6 +84,13 @@ def _frame_from_batches(meta_frames, feature_batches) -> pd.DataFrame:
     return pd.concat([frame.reset_index(drop=True), feature_frame], axis=1)
 
 
+def _metadata_columns(cfg: Mapping) -> list[str]:
+    columns = cfg.get("multimodal", {}).get("image_metadata_columns", None)
+    if not columns:
+        return list(IMAGE_METADATA_COLUMNS)
+    return [str(col) for col in columns]
+
+
 def export_split_embeddings(cfg: Mapping, bundle: SplitBundle, model: torch.nn.Module) -> Path:
     out_dir = image_embedding_dir(cfg)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -94,6 +101,7 @@ def export_split_embeddings(cfg: Mapping, bundle: SplitBundle, model: torch.nn.M
     meta_frames = []
     feature_batches = []
     normalize = bool(cfg.get("multimodal", {}).get("normalize_image_embeddings", True))
+    metadata_columns = _metadata_columns(cfg)
     row_offset = 0
 
     with torch.no_grad():
@@ -110,7 +118,10 @@ def export_split_embeddings(cfg: Mapping, bundle: SplitBundle, model: torch.nn.M
             feature_batches.append(feats)
             batch_size = int(feats.shape[0])
             batch_frame = bundle.frame.iloc[row_offset:row_offset + batch_size].reset_index(drop=True)
-            meta_frames.append(batch_frame.loc[:, IMAGE_METADATA_COLUMNS])
+            missing = [col for col in metadata_columns if col not in batch_frame.columns]
+            if missing:
+                raise ValueError(f"Split '{bundle.name}' metadata is missing columns required for export: {missing}")
+            meta_frames.append(batch_frame.loc[:, metadata_columns])
             row_offset += batch_size
 
     if row_offset != len(bundle.frame):

@@ -123,6 +123,15 @@ Supported modes:
 - `image_only`
 - `geo_only`
 - `raw_concat`
+- `tabular_projected_concat`
+
+For image + geo, `tabular_projected_concat` applies a trainable MLP projection to the geo embedding columns `A00..A63` before concatenating them with the image embedding. The projection width is controlled by `multimodal.tabular_projection_dim`.
+
+The CS2007 soil runner additionally supports:
+
+- `soil_only`
+- `soil_raw_concat`
+- `soil_projected_concat`
 
 Examples:
 
@@ -145,6 +154,16 @@ python multimodal_main.py \
   --base_config configs/multimodal_base.yaml \
   --dataset_config configs/multimodal_cs.yaml \
   --opts multimodal.fusion_mode raw_concat
+```
+
+```bash
+python multimodal_main.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs.yaml \
+  --opts \
+    multimodal.fusion_mode tabular_projected_concat \
+    multimodal.tabular_encoder mlp_projection \
+    multimodal.tabular_projection_dim 32
 ```
 
 ## Stage Controls
@@ -485,7 +504,77 @@ python multimodal_main.py \
   --opts multimodal.fusion_mode geo_only
 ```
 
-### 5. Image-only basline on the geo-matched subset with reused joined table
+### 5. Projected image + geo fusion
+
+```bash
+python multimodal_main.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs.yaml \
+  --opts \
+    multimodal.fusion_mode tabular_projected_concat \
+    multimodal.tabular_encoder mlp_projection \
+    multimodal.tabular_projection_dim 32
+```
+
+This keeps the same geo-matched sample universe as `raw_concat`, but learns a `64 -> tabular_projection_dim` projection for the geo branch before concatenating it with the image embedding.
+
+### 6. CS2007 image + soil projected fusion
+
+```bash
+python tools/run_multimodal_cs2007_soil.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs2007_soil.yaml
+```
+
+The soil runner uses the CS2007 soil-aligned split from `data.cs2007_soil_aligned`, exports deterministic image embeddings, attaches the three soil chemistry features as `S00..S02`, and trains the configured classifier. The default soil fusion mode is `soil_projected_concat`, where the trainable soil branch projects `3 -> 32` before concatenation with image features.
+
+Useful soil ablations:
+
+```bash
+python tools/run_multimodal_cs2007_soil.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs2007_soil.yaml \
+  --opts multimodal.fusion_mode image_only
+```
+
+```bash
+python tools/run_multimodal_cs2007_soil.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs2007_soil.yaml \
+  --opts multimodal.fusion_mode soil_only
+```
+
+```bash
+python tools/run_multimodal_cs2007_soil.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs2007_soil.yaml \
+  --opts multimodal.fusion_mode soil_raw_concat
+```
+
+### 7. CS2007 soil projection-dimension grid search
+
+```bash
+python tools/run_multimodal_cs2007_soil_projection_grid.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs2007_soil.yaml \
+  --dims 4 8 16 32 64 128
+```
+
+This runs `soil_projected_concat` once per projection dimension. Image embeddings and joined soil tables are reused if the split parquets already exist; use `--force_export_image_embeddings` or `--force_build_joined_tables` to regenerate them.
+
+Each grid point is saved with a run tag such as `projdim_32`, for example:
+
+```text
+multimodal_artifacts/runs/cs2007_soil_aligned/<encoder>/soil_projected_concat/projdim_32/seed1/
+```
+
+The aggregate grid results are saved by default under:
+
+```text
+multimodal_artifacts/runs/cs2007_soil_aligned/<encoder>/soil_projected_concat/projection_dim_grid/seed1/
+```
+
+### 8. Image-only baseline on the geo-matched subset with reused joined table
 
 ```bash
 python multimodal_main.py \

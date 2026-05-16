@@ -9,6 +9,21 @@ class IdentityEncoder(nn.Module):
         return x
 
 
+class TabularProjectionEncoder(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int, dropout: float = 0.0):
+        super().__init__()
+        layers = [
+            nn.Linear(input_dim, output_dim),
+            nn.ReLU(),
+        ]
+        if dropout > 0:
+            layers.append(nn.Dropout(dropout))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
 class ConcatFusion(nn.Module):
     def forward(self, modalities):
         return torch.cat([torch.flatten(modality, start_dim=1) for modality in modalities], dim=1)
@@ -33,25 +48,25 @@ class LateFusionClassifier(nn.Module):
         self,
         mode: str,
         image_encoder: nn.Module,
-        geo_encoder: nn.Module,
+        tabular_encoder: nn.Module,
         head: nn.Module,
         fusion: nn.Module | None = None,
     ):
         super().__init__()
         self.mode = mode
         self.image_encoder = image_encoder
-        self.geo_encoder = geo_encoder
+        self.tabular_encoder = tabular_encoder
         self.head = head
         self.fusion = fusion
 
-    def forward(self, image_features: torch.Tensor, geo_features: torch.Tensor) -> torch.Tensor:
+    def forward(self, image_features: torch.Tensor, tabular_features: torch.Tensor) -> torch.Tensor:
         if self.mode == "image_only":
             return self.head(self.image_encoder(image_features))
-        if self.mode == "geo_only":
-            return self.head(self.geo_encoder(geo_features))
-        if self.mode == "raw_concat":
+        if self.mode in {"geo_only", "soil_only", "tabular_only"}:
+            return self.head(self.tabular_encoder(tabular_features))
+        if self.mode in {"raw_concat", "soil_raw_concat", "tabular_raw_concat", "soil_projected_concat", "tabular_projected_concat"}:
             if self.fusion is None:
-                raise RuntimeError("raw_concat mode requires a fusion module")
-            fused = self.fusion([self.image_encoder(image_features), self.geo_encoder(geo_features)])
+                raise RuntimeError(f"{self.mode} mode requires a fusion module")
+            fused = self.fusion([self.image_encoder(image_features), self.tabular_encoder(tabular_features)])
             return self.head(fused)
         raise ValueError(f"Unsupported fusion mode: {self.mode}")

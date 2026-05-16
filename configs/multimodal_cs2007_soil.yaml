@@ -1,0 +1,40 @@
+dataset: 'cs2007_soil_aligned'
+
+soil_aligned:
+  soil_csv: './data/cs2007_soil_data/CS2007_X_with_habs_plus_soil_attributes.csv'
+  image_root: './data/CS2007_Xs_Sept2024_all'
+  output_dir: './multimodal_artifacts/splits/cs2007_soil_aligned'
+  rare_threshold: 20
+  train_size: 0.70
+  valid_size: 0.15
+  test_size: 0.15
+  split_seed: 42
+  validate_expected_counts: True
+  expected_valid_soil_rows: 3517
+  expected_openclip_rows: 3514
+  expected_openclip_split_rows:
+    train: 2452
+    valid: 539
+    test: 523
+
+multimodal:
+  joined_table_tag: 'soil_chemistry'
+  fusion_mode: 'soil_projected_concat'
+  tabular_modality_name: 'soil'
+  tabular_feature_columns:
+    - 'S00'
+    - 'S01'
+    - 'S02'
+  tabular_encoder: 'mlp_projection'
+  tabular_projection_dim: 32
+  tabular_projection_dropout: 0.0
+  image_metadata_columns:
+    - 'file'
+    - 'ID'
+    - 'label_id'
+    - 'label_name'
+    - 'l2_label'
+    - 'split'
+    - 'S00'
+    - 'S01'
+    - 'S02'

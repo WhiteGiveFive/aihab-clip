@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
@@ -21,6 +22,8 @@ from data.dataset import image_loader
 
 
 GEO_FEATURE_COLUMNS = [f"A{i:02d}" for i in range(64)]
+SOIL_FEATURE_COLUMNS = [f"S{i:02d}" for i in range(3)]
+IMAGE_FEATURE_RE = re.compile(r"^I\d+$")
 IMAGE_METADATA_COLUMNS = [
     "file",
     "label_id",
@@ -80,14 +83,20 @@ def image_embedding_dir(cfg: Mapping) -> Path:
 
 def joined_table_dir(cfg: Mapping) -> Path:
     mm_cfg = cfg.get("multimodal", {})
-    geo_tag = _sanitize_name(Path(str(mm_cfg.get("geo_embeddings_path", "geo"))).stem)
-    return _resolve_output_root(cfg) / "joined_tables" / str(cfg.get("dataset", "cs")) / _encoder_tag(cfg) / geo_tag / f"seed{int(cfg.get('seed', 1))}"
+    table_tag = mm_cfg.get("joined_table_tag", None)
+    if table_tag is None:
+        table_tag = Path(str(mm_cfg.get("geo_embeddings_path", "geo"))).stem
+    return _resolve_output_root(cfg) / "joined_tables" / str(cfg.get("dataset", "cs")) / _encoder_tag(cfg) / _sanitize_name(str(table_tag)) / f"seed{int(cfg.get('seed', 1))}"
 
 
 def run_dir(cfg: Mapping) -> Path:
     mm_cfg = cfg.get("multimodal", {})
     fusion_mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
-    return _resolve_output_root(cfg) / "runs" / str(cfg.get("dataset", "cs")) / _encoder_tag(cfg) / fusion_mode / f"seed{int(cfg.get('seed', 1))}"
+    root = _resolve_output_root(cfg) / "runs" / str(cfg.get("dataset", "cs")) / _encoder_tag(cfg) / fusion_mode
+    run_tag = mm_cfg.get("run_tag", None)
+    if run_tag:
+        root = root / _sanitize_name(str(run_tag))
+    return root / f"seed{int(cfg.get('seed', 1))}"
 
 
 def _subset_filter(
@@ -406,8 +415,29 @@ def load_geo_embeddings(cfg: Mapping) -> Tuple[pd.DataFrame, Dict[str, int]]:
     return deduplicate_geo_embeddings(geo_df)
 
 
-def _image_feature_columns(df: pd.DataFrame) -> List[str]:
-    return sorted([c for c in df.columns if c.startswith("I")])
+def image_feature_columns(df: pd.DataFrame) -> List[str]:
+    return sorted([c for c in df.columns if IMAGE_FEATURE_RE.match(str(c))])
+
+
+def tabular_modality_name(cfg: Mapping) -> str:
+    mm_cfg = cfg.get("multimodal", {})
+    value = mm_cfg.get("tabular_modality_name", None)
+    if value:
+        return str(value)
+    mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
+    if mode.startswith("soil_") or mode == "soil_only":
+        return "soil"
+    return "geo"
+
+
+def tabular_feature_columns(cfg: Mapping) -> List[str]:
+    mm_cfg = cfg.get("multimodal", {})
+    configured = mm_cfg.get("tabular_feature_columns", None)
+    if configured:
+        return [str(c) for c in configured]
+    if tabular_modality_name(cfg) == "soil":
+        return list(SOIL_FEATURE_COLUMNS)
+    return list(GEO_FEATURE_COLUMNS)
 
 
 def join_split_with_geo(image_split_df: pd.DataFrame, geo_df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, object], pd.DataFrame]:
@@ -428,7 +458,7 @@ def join_split_with_geo(image_split_df: pd.DataFrame, geo_df: pd.DataFrame) -> T
         "matched_rows": int(len(merged)),
         "dropped_rows": int(len(dropped)),
         "dropped_files_preview": dropped["file"].astype(str).head(20).tolist(),
-        "image_feature_dim": int(len(_image_feature_columns(image_df))),
+        "image_feature_dim": int(len(image_feature_columns(image_df))),
         "geo_feature_dim": int(len(GEO_FEATURE_COLUMNS)),
         "label_count": int(merged["label_id"].nunique()) if not merged.empty else 0,
     }
@@ -459,13 +489,16 @@ def load_joined_splits(cfg: Mapping) -> Dict[str, pd.DataFrame]:
 
 
 class FeatureTableDataset(Dataset):
-    def __init__(self, frame: pd.DataFrame, mode: str):
+    def __init__(self, frame: pd.DataFrame, mode: str, tabular_cols: Sequence[str] | None = None):
         self.frame = frame.reset_index(drop=True)
         self.mode = mode
-        self.image_cols = sorted([c for c in self.frame.columns if c.startswith("I")])
-        self.geo_cols = GEO_FEATURE_COLUMNS
+        self.image_cols = image_feature_columns(self.frame)
+        self.tabular_cols = list(tabular_cols or GEO_FEATURE_COLUMNS)
         if not self.image_cols:
             raise ValueError("Joined feature table is missing image feature columns.")
+        missing = [c for c in self.tabular_cols if c not in self.frame.columns]
+        if missing:
+            raise ValueError(f"Joined feature table is missing tabular feature columns: {missing}")
         self.labels = torch.tensor(self.frame["label_id"].astype(int).to_numpy(), dtype=torch.long)
 
     def __len__(self) -> int:
@@ -474,6 +507,6 @@ class FeatureTableDataset(Dataset):
     def __getitem__(self, idx: int):
         row = self.frame.iloc[idx]
         image_feat = torch.tensor(row[self.image_cols].to_numpy(dtype=np.float32), dtype=torch.float32)
-        geo_feat = torch.tensor(row[self.geo_cols].to_numpy(dtype=np.float32), dtype=torch.float32)
+        tabular_feat = torch.tensor(row[self.tabular_cols].to_numpy(dtype=np.float32), dtype=torch.float32)
         label = self.labels[idx]
-        return image_feat, geo_feat, label
+        return image_feat, tabular_feat, label

@@ -7,7 +7,6 @@ from typing import Dict, Mapping, Sequence
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import matthews_corrcoef
 from torch import nn
@@ -19,8 +18,15 @@ except ImportError:
     MulticlassConfusionMatrix = None
     MulticlassF1Score = None
 
-from multimodal.data import FeatureTableDataset, GEO_FEATURE_COLUMNS, load_joined_splits, run_dir
-from multimodal.models import ConcatFusion, IdentityEncoder, LateFusionClassifier, MLPHead
+from multimodal.data import (
+    FeatureTableDataset,
+    image_feature_columns,
+    load_joined_splits,
+    run_dir,
+    tabular_feature_columns,
+    tabular_modality_name,
+)
+from multimodal.models import ConcatFusion, IdentityEncoder, LateFusionClassifier, MLPHead, TabularProjectionEncoder
 
 
 def _device() -> torch.device:
@@ -96,57 +102,75 @@ def _build_cm_metric(num_classes: int):
     return _FallbackConfusionMatrix(num_classes=num_classes)
 
 
-def _image_feature_columns(frame: pd.DataFrame):
-    return sorted([c for c in frame.columns if c.startswith("I")])
-
-
-def _compute_geo_stats(train_df: pd.DataFrame) -> Dict[str, list]:
+def _compute_tabular_stats(train_df: pd.DataFrame, feature_cols: Sequence[str]) -> Dict[str, list]:
     if train_df.empty:
         raise ValueError("Joined train split is empty after geo matching; cannot fit multimodal classifier.")
-    geo = train_df[GEO_FEATURE_COLUMNS].astype(np.float32)
-    mean = geo.mean(axis=0).to_numpy(dtype=np.float32)
-    std = geo.std(axis=0, ddof=0).to_numpy(dtype=np.float32)
+    tabular = train_df[list(feature_cols)].astype(np.float32)
+    mean = tabular.mean(axis=0).to_numpy(dtype=np.float32)
+    std = tabular.std(axis=0, ddof=0).to_numpy(dtype=np.float32)
     std[std == 0] = 1.0
     return {"mean": mean.tolist(), "std": std.tolist()}
 
 
-def _apply_geo_standardization(frame: pd.DataFrame, stats: Mapping[str, Sequence[float]]) -> pd.DataFrame:
+def _apply_tabular_standardization(frame: pd.DataFrame, stats: Mapping[str, Sequence[float]], feature_cols: Sequence[str]) -> pd.DataFrame:
     out = frame.copy()
     mean = np.asarray(stats["mean"], dtype=np.float32)
     std = np.asarray(stats["std"], dtype=np.float32)
-    out.loc[:, GEO_FEATURE_COLUMNS] = (out[GEO_FEATURE_COLUMNS].astype(np.float32) - mean) / std
+    out.loc[:, list(feature_cols)] = (out[list(feature_cols)].astype(np.float32) - mean) / std
     return out
 
 
-def _build_dataloader(frame: pd.DataFrame, mode: str, batch_size: int, num_workers: int, shuffle: bool) -> DataLoader:
-    ds = FeatureTableDataset(frame, mode=mode)
+def _build_dataloader(frame: pd.DataFrame, mode: str, feature_cols: Sequence[str], batch_size: int, num_workers: int, shuffle: bool) -> DataLoader:
+    ds = FeatureTableDataset(frame, mode=mode, tabular_cols=feature_cols)
     return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True)
 
 
-def _build_model(cfg: Mapping, train_df: pd.DataFrame) -> LateFusionClassifier:
+def _uses_projected_tabular(mode: str, mm_cfg: Mapping) -> bool:
+    if mode in {"soil_projected_concat", "tabular_projected_concat", "soil_only"}:
+        return True
+    if mode in {"raw_concat", "soil_raw_concat", "tabular_raw_concat", "geo_only", "image_only"}:
+        return False
+    encoder = str(mm_cfg.get("tabular_encoder", "")).lower()
+    if encoder == "mlp_projection":
+        return True
+    return False
+
+
+def _build_tabular_encoder(tabular_dim: int, mode: str, mm_cfg: Mapping) -> tuple[nn.Module, int]:
+    if _uses_projected_tabular(mode, mm_cfg):
+        projection_dim = int(mm_cfg.get("tabular_projection_dim", 32))
+        projection_dropout = float(mm_cfg.get("tabular_projection_dropout", 0.0))
+        return TabularProjectionEncoder(tabular_dim, projection_dim, dropout=projection_dropout), projection_dim
+    return IdentityEncoder(), tabular_dim
+
+
+def _build_model(cfg: Mapping, train_df: pd.DataFrame, feature_cols: Sequence[str]) -> LateFusionClassifier:
     mm_cfg = cfg.get("multimodal", {})
     mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
     hidden_dim = int(mm_cfg.get("hidden_dim", 256))
     dropout = float(mm_cfg.get("dropout", 0.1))
-    image_dim = len(_image_feature_columns(train_df))
-    geo_dim = len(GEO_FEATURE_COLUMNS)
+    image_dim = len(image_feature_columns(train_df))
+    tabular_dim = len(feature_cols)
     num_classes = int(train_df["label_id"].nunique())
+    tabular_encoder, tabular_out_dim = _build_tabular_encoder(tabular_dim, mode, mm_cfg)
 
     if mode == "image_only":
         head_in = image_dim
         fusion = None
-    elif mode == "geo_only":
-        head_in = geo_dim
+    elif mode in {"geo_only", "soil_only", "tabular_only"}:
+        head_in = tabular_out_dim
         fusion = None
-    else:
-        head_in = image_dim + geo_dim
+    elif mode in {"raw_concat", "soil_raw_concat", "tabular_raw_concat", "soil_projected_concat", "tabular_projected_concat"}:
+        head_in = image_dim + tabular_out_dim
         fusion = ConcatFusion()
+    else:
+        raise ValueError(f"Unsupported fusion mode: {mode}")
 
     head = MLPHead(head_in, hidden_dim=hidden_dim, output_dim=num_classes, dropout=dropout)
     return LateFusionClassifier(
         mode=mode,
         image_encoder=IdentityEncoder(),
-        geo_encoder=IdentityEncoder(),
+        tabular_encoder=tabular_encoder,
         head=head,
         fusion=fusion,
     )
@@ -286,10 +310,12 @@ def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
     tables = load_joined_splits(cfg)
     mm_cfg = cfg.get("multimodal", {})
     mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
+    feature_cols = tabular_feature_columns(cfg)
+    modality_name = tabular_modality_name(cfg)
 
     tables, label_map, class_names = _reindex_labels(tables)
-    geo_stats = _compute_geo_stats(tables["train"])
-    tables = {split: _apply_geo_standardization(frame, geo_stats) for split, frame in tables.items()}
+    tabular_stats = _compute_tabular_stats(tables["train"], feature_cols)
+    tables = {split: _apply_tabular_standardization(frame, tabular_stats, feature_cols) for split, frame in tables.items()}
 
     batch_size = int(mm_cfg.get("train_batch_size", 128))
     num_workers = int(mm_cfg.get("train_num_workers", 0))
@@ -300,23 +326,26 @@ def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
     report_test_each_epoch = bool(mm_cfg.get("report_test_each_epoch", True))
     print_epoch_metrics = bool(mm_cfg.get("print_epoch_metrics", True))
 
-    train_loader = _build_dataloader(tables["train"], mode=mode, batch_size=batch_size, num_workers=num_workers, shuffle=True)
-    val_loader = _build_dataloader(tables["val"], mode=mode, batch_size=batch_size, num_workers=num_workers, shuffle=False)
-    test_loader = _build_dataloader(tables["test"], mode=mode, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+    train_loader = _build_dataloader(tables["train"], mode=mode, feature_cols=feature_cols, batch_size=batch_size, num_workers=num_workers, shuffle=True)
+    val_loader = _build_dataloader(tables["val"], mode=mode, feature_cols=feature_cols, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+    test_loader = _build_dataloader(tables["test"], mode=mode, feature_cols=feature_cols, batch_size=batch_size, num_workers=num_workers, shuffle=False)
 
     device = _device()
-    model = _build_model(cfg, tables["train"]).to(device)
+    model = _build_model(cfg, tables["train"], feature_cols).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss()
 
     output_dir = run_dir(cfg)
     output_dir.mkdir(parents=True, exist_ok=True)
-    scaler_path = output_dir / "geo_standardization.json"
+    scaler_name = "geo_standardization.json" if modality_name == "geo" else "tabular_standardization.json"
+    scaler_path = output_dir / scaler_name
     with scaler_path.open("w", encoding="utf-8") as f:
         json.dump(
             {
-                "mean": geo_stats["mean"],
-                "std": geo_stats["std"],
+                "modality_name": modality_name,
+                "feature_columns": list(feature_cols),
+                "mean": tabular_stats["mean"],
+                "std": tabular_stats["std"],
                 "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
                 "class_names": class_names,
             },
@@ -377,6 +406,8 @@ def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
                 "val_rows": int(len(tables["val"])),
                 "test_rows": int(len(tables["test"])),
                 "report_test_each_epoch": report_test_each_epoch,
+                "tabular_modality_name": modality_name,
+                "tabular_feature_columns": list(feature_cols),
                 "class_names": class_names,
                 "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
                 "history": history,
