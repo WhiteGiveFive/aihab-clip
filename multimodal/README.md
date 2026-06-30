@@ -3,7 +3,7 @@
 This folder contains the separate multimodal workflow for CS habitat classification using:
 
 - OpenCLIP image embeddings
-- Google's satellite embeddings from `data/cs_geo_gse_10km`
+- Google's satellite embeddings from `data/cs_geo_gse_10km` or the curated 10m adapter in `data/cs_geo_gse_10m`
 - a late-fusion classifier over precomputed features
 
 This pipeline is intentionally separate from the existing image-text OpenCLIP training flow in `main.py`. It does not replace or modify the original ProLIP / OpenCLIP code path.
@@ -57,7 +57,7 @@ The default configuration assumes:
 - dataset: `cs`
 - OpenCLIP backbone: `hf-hub:timm/ViT-SO400M-16-SigLIP2-384`
 - primary image feature source: habitat-finetuned checkpoint
-- geo embeddings: `./data/cs_geo_gse_10km/CS_Xplots_embeddings_per_file.parquet`
+- geo embeddings: `./data/cs_geo_gse_10km/CS_Xplots_embeddings_per_file.parquet` for the generic CS runner; `./data/cs_geo_gse_10m/CS_Xplots_embeddings_per_file_10m_public.parquet` for the 10m runner
 - evaluation framing: "same grid, new photo"
 - missing geo rows are dropped by inner join
 
@@ -257,6 +257,7 @@ multimodal:
 Join behavior:
 
 - lowercase `file` is used as the join key
+- geo inputs must contain `file` and `A00..A63` columns
 - geo duplicates are deduplicated before joining
 - rows with missing geo features are dropped
 - join is performed separately within each split
@@ -266,7 +267,7 @@ Join behavior:
 If multiple geo rows exist for the same file:
 
 - prefer the row with non-empty `BH_PLOT_DESC`
-- allow duplicates only if `embedding_key` and all `A00..A63` values agree
+- allow duplicates only if all `A00..A63` values agree
 - fail fast if duplicate rows disagree
 
 This is intentional. Silent disagreement in geo features is treated as a data error.
@@ -302,7 +303,6 @@ The joined multimodal split parquet contains:
 - all image embedding columns `I*`
 - all geo embedding columns `A00..A63`
 - metadata from the image split
-- `embedding_key` from the geo table
 
 ## Output Layout
 
@@ -518,7 +518,36 @@ python multimodal_main.py \
 
 This keeps the same geo-matched sample universe as `raw_concat`, but learns a `64 -> tabular_projection_dim` projection for the geo branch before concatenating it with the image embedding.
 
-### 6. CS2007 image + soil projected fusion
+### 6. CS 10m curated image + geo fusion
+
+```bash
+python tools/run_multimodal_cs_geo_10m.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs_geo_10m.yaml
+```
+
+The 10m runner reads `data/cs_geo_gse_10m/CS_Xplots_10m_curated_train_test_split.csv`, drops rows with `split == removed`, resolves each usable file across the configured train/test image roots, creates a grouped validation split from curated `train` IDs only, keeps curated `test` unchanged, joins by `file` to `A00..A63`, and then calls the shared classifier trainer. The default fusion mode is `raw_concat`.
+
+Useful 10m ablations:
+
+```bash
+python tools/run_multimodal_cs_geo_10m.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs_geo_10m.yaml \
+  --opts multimodal.fusion_mode geo_only
+```
+
+```bash
+python tools/run_multimodal_cs_geo_10m.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs_geo_10m.yaml \
+  --opts \
+    multimodal.fusion_mode tabular_projected_concat \
+    multimodal.tabular_encoder mlp_projection \
+    multimodal.tabular_projection_dim 32
+```
+
+### 7. CS2007 image + soil projected fusion
 
 ```bash
 python tools/run_multimodal_cs2007_soil.py \
@@ -551,7 +580,7 @@ python tools/run_multimodal_cs2007_soil.py \
   --opts multimodal.fusion_mode soil_raw_concat
 ```
 
-### 7. CS2007 soil projection-dimension grid search
+### 8. CS2007 soil projection-dimension grid search
 
 ```bash
 python tools/run_multimodal_cs2007_soil_projection_grid.py \
@@ -574,7 +603,7 @@ The aggregate grid results are saved by default under:
 multimodal_artifacts/runs/cs2007_soil_aligned/<encoder>/soil_projected_concat/projection_dim_grid/seed1/
 ```
 
-### 8. Image-only baseline on the geo-matched subset with reused joined table
+### 9. Image-only baseline on the geo-matched subset with reused joined table
 
 ```bash
 python multimodal_main.py \

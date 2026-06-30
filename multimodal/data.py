@@ -348,7 +348,7 @@ def build_export_loader(cfg: Mapping, bundle: SplitBundle) -> DataLoader:
 
 
 def _validate_geo_rows(df: pd.DataFrame) -> pd.DataFrame:
-    required = {"file", "embedding_key", *GEO_FEATURE_COLUMNS}
+    required = {"file", *GEO_FEATURE_COLUMNS}
     missing = required.difference(df.columns)
     if missing:
         raise ValueError(f"Geo parquet missing columns: {sorted(missing)}")
@@ -381,8 +381,6 @@ def deduplicate_geo_embeddings(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str
             preferred_nonempty += 1
 
         for _, row in group.iloc[1:].iterrows():
-            if str(row["embedding_key"]) != str(first["embedding_key"]):
-                raise ValueError(f"Conflicting geo embedding_key values for file={first['file']}")
             a_first = first[GEO_FEATURE_COLUMNS].to_numpy(dtype=np.float32)
             a_row = row[GEO_FEATURE_COLUMNS].to_numpy(dtype=np.float32)
             if not np.allclose(a_first, a_row, equal_nan=True):
@@ -447,7 +445,7 @@ def join_split_with_geo(image_split_df: pd.DataFrame, geo_df: pd.DataFrame) -> T
     geo["file_lower"] = _lower_file_series(geo["file"])
 
     merged = image_df.merge(
-        geo[["file_lower", "embedding_key", *GEO_FEATURE_COLUMNS]],
+        geo[["file_lower", *GEO_FEATURE_COLUMNS]],
         on="file_lower",
         how="inner",
     )
