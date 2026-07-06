@@ -232,6 +232,40 @@ python multimodal_main.py \
     multimodal.train_classifier True
 ```
 
+## Fixed-Epoch Train+Validation Final Fit
+
+Use this regime only after selecting the epoch count and other hyperparameters with a separate validation experiment. It trains a fresh classifier on the existing joined `train` and `val` tables for exactly `multimodal.train_epoch` epochs, then evaluates the final epoch on `test`. Validation is not evaluated and cannot stop or select the model.
+
+Keep `data.data_split.valid_split` non-zero when exporting embeddings and building joined tables. Final fit consumes those materialized train and validation artifacts; it does not support an empty validation table.
+
+The two supported trainer configurations are:
+
+- `train_on_train_val: False`, `early_stopping: True`: validation-selected training (the default and existing behavior).
+- `train_on_train_val: True`, `early_stopping: False`: fixed-epoch train+validation final fit.
+
+Other combinations raise a configuration error. In final-fit mode, `report_test_each_epoch: False` evaluates test only after training. Setting it to `True` also records test metrics in every history entry and retains an explicitly diagnostic `oracle_test_best` result selected by test top-1 accuracy. This oracle result is test-set leakage and must not be used as the primary reported result.
+
+Use a distinct `run_tag` so the final-fit checkpoint does not overwrite validation-selected results:
+
+```bash
+python multimodal_main.py \
+  --base_config configs/multimodal_base.yaml \
+  --dataset_config configs/multimodal_cs_geo_100m.yaml \
+  --opts \
+    seed 1 \
+    multimodal.image_feature_source habitat_finetuned \
+    multimodal.fusion_mode raw_concat \
+    multimodal.export_image_embeddings False \
+    multimodal.build_joined_tables False \
+    multimodal.train_on_train_val True \
+    multimodal.early_stopping False \
+    multimodal.train_epoch 20 \
+    multimodal.report_test_each_epoch False \
+    multimodal.run_tag gse_100m_train_test_epoch20
+```
+
+The final epoch is stored as `best_model.pt` for output compatibility. Its checkpoint payload and `metrics.json` identify the regime as `fixed_epoch_train_val`; the scaler records `fit_split: train_val` and the combined fit row count. When per-epoch test reporting is enabled, `oracle_test_best_model.pt` and `oracle_test_best_confusion_matrix.npy` retain the earliest epoch achieving the highest test top-1 accuracy. The primary `test` metrics and `test_confusion_matrix.npy` still describe the final-epoch model.
+
 ## Data and Split Behavior
 
 ### Image Splits
@@ -348,6 +382,8 @@ multimodal_artifacts/
             metrics.json
             geo_standardization.json
             test_confusion_matrix.npy
+            oracle_test_best_model.pt                 # final-fit diagnostic, optional
+            oracle_test_best_confusion_matrix.npy     # final-fit diagnostic, optional
 ```
 
 `<encoder_tag>` is derived from the checkpoint name for habitat-finetuned runs, or from the model name for pretrained runs.
@@ -547,7 +583,17 @@ python tools/run_multimodal_cs_geo_10m.py \
     multimodal.tabular_projection_dim 32
 ```
 
-### 7. CS2007 image + soil projected fusion
+### 7. Full CS 2019-2023 image + 100m GSE suite
+
+```bash
+python tools/run_multimodal_cs_geo_100m.py --validate_data_only
+python tools/run_multimodal_cs_geo_100m.py --inspect_only --seeds 1 2 3 4 5
+python tools/run_multimodal_cs_geo_100m.py --seeds 1 2 3 4 5
+```
+
+For every seed, the runner trains fine-tuned and pretrained `image_only` models, one shared `geo_only` model, and fine-tuned and pretrained `raw_concat` models. It requires complete joined splits of 4,159 train, 41 validation, and 1,398 test rows. Valid runs are resumed automatically, and suite reports are written under `multimodal_artifacts/reports/cs/gse_100m/`.
+
+### 8. CS2007 image + soil projected fusion
 
 ```bash
 python tools/run_multimodal_cs2007_soil.py \
@@ -580,7 +626,7 @@ python tools/run_multimodal_cs2007_soil.py \
   --opts multimodal.fusion_mode soil_raw_concat
 ```
 
-### 8. CS2007 soil projection-dimension grid search
+### 9. CS2007 soil projection-dimension grid search
 
 ```bash
 python tools/run_multimodal_cs2007_soil_projection_grid.py \
@@ -603,7 +649,7 @@ The aggregate grid results are saved by default under:
 multimodal_artifacts/runs/cs2007_soil_aligned/<encoder>/soil_projected_concat/projection_dim_grid/seed1/
 ```
 
-### 9. Image-only baseline on the geo-matched subset with reused joined table
+### 10. Image-only baseline on the geo-matched subset with reused joined table
 
 ```bash
 python multimodal_main.py \

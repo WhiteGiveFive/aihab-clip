@@ -176,7 +176,10 @@ def _build_model(cfg: Mapping, train_df: pd.DataFrame, feature_cols: Sequence[st
     )
 
 
-def _reindex_labels(tables: Mapping[str, pd.DataFrame]) -> tuple[Dict[str, pd.DataFrame], Dict[int, int], list[str]]:
+def _reindex_labels(
+    tables: Mapping[str, pd.DataFrame],
+    training_split_name: str = "geo-matched train split",
+) -> tuple[Dict[str, pd.DataFrame], Dict[int, int], list[str]]:
     train_df = tables["train"]
     if train_df.empty:
         raise ValueError("Joined train split is empty after geo matching.")
@@ -195,7 +198,7 @@ def _reindex_labels(tables: Mapping[str, pd.DataFrame]) -> tuple[Dict[str, pd.Da
         unseen = sorted(set(frame["label_id"].astype(int).unique().tolist()).difference(label_map))
         if unseen:
             raise ValueError(
-                f"Joined {split} split contains labels absent from the geo-matched train split: {unseen}"
+                f"Joined {split} split contains labels absent from the {training_split_name}: {unseen}"
             )
         out = frame.copy()
         out["label_id"] = out["label_id"].astype(int).map(label_map).astype(int)
@@ -306,7 +309,7 @@ def _print_epoch_metrics(epoch: int,
     print(message)
 
 
-def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
+def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
     tables = load_joined_splits(cfg)
     mm_cfg = cfg.get("multimodal", {})
     mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
@@ -424,3 +427,258 @@ def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
         "metrics": metrics_path,
         "scaler": scaler_path,
     }
+
+
+def _final_fit_history_payload(
+    train_loss: float,
+    epoch: int,
+    test_metrics: Mapping[str, object] | None,
+) -> Dict[str, float]:
+    entry: Dict[str, float] = {
+        "epoch": int(epoch),
+        "train_loss": float(train_loss),
+    }
+    if test_metrics is not None:
+        entry.update(
+            {
+                "test_loss": float(test_metrics["loss"]),
+                "test_top1_acc": float(test_metrics["top1_acc"]),
+                "test_top3_acc": float(test_metrics["top3_acc"]),
+                "test_f1": float(test_metrics["f1"]),
+                "test_mcc": float(test_metrics["mcc"]),
+            }
+        )
+    return entry
+
+
+def _print_final_fit_epoch_metrics(
+    epoch: int,
+    epochs: int,
+    train_loss: float,
+    test_metrics: Mapping[str, object] | None,
+) -> None:
+    message = f"[epoch {epoch}/{epochs}] train_loss={train_loss:.4f}"
+    if test_metrics is not None:
+        message += (
+            f" test_loss={float(test_metrics['loss']):.4f}"
+            f" test_top1={float(test_metrics['top1_acc']):.4f}"
+            f" test_top3={float(test_metrics['top3_acc']):.4f}"
+            f" test_f1={float(test_metrics['f1']):.4f}"
+            f" test_mcc={float(test_metrics['mcc']):.4f}"
+        )
+    print(message)
+
+
+def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
+    source_tables = load_joined_splits(cfg)
+    for split in ("train", "val", "test"):
+        if source_tables[split].empty:
+            raise ValueError(
+                "Fixed-epoch final-fit requires non-empty joined train, val, and test splits; "
+                f"the {split} split is empty."
+            )
+
+    source_train_rows = int(len(source_tables["train"]))
+    source_val_rows = int(len(source_tables["val"]))
+    combined_train = pd.concat(
+        [source_tables["train"], source_tables["val"]],
+        axis=0,
+        ignore_index=True,
+    )
+    tables, label_map, class_names = _reindex_labels(
+        {"train": combined_train, "test": source_tables["test"]},
+        training_split_name="combined train+validation split",
+    )
+
+    mm_cfg = cfg.get("multimodal", {})
+    mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
+    feature_cols = tabular_feature_columns(cfg)
+    modality_name = tabular_modality_name(cfg)
+    tabular_stats = _compute_tabular_stats(tables["train"], feature_cols)
+    tables = {
+        split: _apply_tabular_standardization(frame, tabular_stats, feature_cols)
+        for split, frame in tables.items()
+    }
+
+    batch_size = int(mm_cfg.get("train_batch_size", 128))
+    num_workers = int(mm_cfg.get("train_num_workers", 0))
+    epochs = int(mm_cfg.get("train_epoch", 50))
+    if epochs <= 0:
+        raise ValueError("multimodal.train_epoch must be greater than zero for fixed-epoch final-fit.")
+    lr = float(mm_cfg.get("lr", 1e-3))
+    weight_decay = float(mm_cfg.get("weight_decay", 1e-4))
+    report_test_each_epoch = bool(mm_cfg.get("report_test_each_epoch", True))
+    print_epoch_metrics = bool(mm_cfg.get("print_epoch_metrics", True))
+
+    train_loader = _build_dataloader(
+        tables["train"],
+        mode=mode,
+        feature_cols=feature_cols,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=True,
+    )
+    test_loader = _build_dataloader(
+        tables["test"],
+        mode=mode,
+        feature_cols=feature_cols,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=False,
+    )
+
+    device = _device()
+    model = _build_model(cfg, tables["train"], feature_cols).to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    criterion = nn.CrossEntropyLoss()
+    num_classes = int(tables["train"]["label_id"].nunique())
+
+    output_dir = run_dir(cfg)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    oracle_checkpoint_path = output_dir / "oracle_test_best_model.pt"
+    oracle_cm_path = output_dir / "oracle_test_best_confusion_matrix.npy"
+    if not report_test_each_epoch:
+        oracle_checkpoint_path.unlink(missing_ok=True)
+        oracle_cm_path.unlink(missing_ok=True)
+    scaler_name = "geo_standardization.json" if modality_name == "geo" else "tabular_standardization.json"
+    scaler_path = output_dir / scaler_name
+    with scaler_path.open("w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "modality_name": modality_name,
+                "feature_columns": list(feature_cols),
+                "mean": tabular_stats["mean"],
+                "std": tabular_stats["std"],
+                "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
+                "class_names": class_names,
+                "fit_split": "train_val",
+                "fit_rows": int(len(tables["train"])),
+            },
+            f,
+            indent=2,
+        )
+
+    history = []
+    oracle_test_best: Dict[str, object] | None = None
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0.0
+        total_seen = 0
+        for image_features, geo_features, targets in train_loader:
+            image_features = image_features.to(device)
+            geo_features = geo_features.to(device)
+            targets = targets.to(device)
+            logits = model(image_features, geo_features)
+            loss = criterion(logits, targets)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item() * len(targets)
+            total_seen += len(targets)
+
+        avg_train_loss = total_loss / max(total_seen, 1)
+        test_metrics_epoch = None
+        if report_test_each_epoch:
+            test_metrics_epoch = _evaluate(model, test_loader, num_classes, device)
+            if (
+                oracle_test_best is None
+                or float(test_metrics_epoch["top1_acc"]) > float(oracle_test_best["top1_acc"])
+            ):
+                oracle_test_best = {
+                    "selection_split": "test",
+                    "selection_metric": "top1_acc",
+                    "diagnostic_only": True,
+                    "epoch": int(epoch + 1),
+                    "loss": float(test_metrics_epoch["loss"]),
+                    "top1_acc": float(test_metrics_epoch["top1_acc"]),
+                    "top3_acc": float(test_metrics_epoch["top3_acc"]),
+                    "f1": float(test_metrics_epoch["f1"]),
+                    "mcc": float(test_metrics_epoch["mcc"]),
+                    "cm": np.asarray(test_metrics_epoch["cm"]).copy(),
+                }
+                torch.save(
+                    {
+                        "model_state": model.state_dict(),
+                        "mode": mode,
+                        "epoch": int(epoch + 1),
+                        "training_regime": "fixed_epoch_train_val",
+                        "selection_split": "test",
+                        "selection_metric": "top1_acc",
+                        "diagnostic_only": True,
+                    },
+                    oracle_checkpoint_path,
+                )
+                np.save(oracle_cm_path, oracle_test_best["cm"])
+        history.append(_final_fit_history_payload(avg_train_loss, epoch + 1, test_metrics_epoch))
+        if print_epoch_metrics:
+            _print_final_fit_epoch_metrics(
+                epoch + 1,
+                epochs,
+                avg_train_loss,
+                test_metrics_epoch,
+            )
+
+    best_path = output_dir / "best_model.pt"
+    torch.save(
+        {
+            "model_state": model.state_dict(),
+            "mode": mode,
+            "epoch": epochs,
+            "training_regime": "fixed_epoch_train_val",
+        },
+        best_path,
+    )
+
+    test_metrics = _evaluate(model, test_loader, num_classes, device)
+    metrics_path = output_dir / "metrics.json"
+    metrics_payload = {
+        "mode": mode,
+        "training_regime": "fixed_epoch_train_val",
+        "train_on_train_val": True,
+        "early_stopping": False,
+        "train_rows": int(len(tables["train"])),
+        "source_train_rows": source_train_rows,
+        "source_val_rows": source_val_rows,
+        "val_rows": 0,
+        "test_rows": int(len(tables["test"])),
+        "report_test_each_epoch": report_test_each_epoch,
+        "tabular_modality_name": modality_name,
+        "tabular_feature_columns": list(feature_cols),
+        "class_names": class_names,
+        "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
+        "history": history,
+        "val": {},
+        "test": {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in test_metrics.items()},
+    }
+    if oracle_test_best is not None:
+        metrics_payload["oracle_test_best"] = {
+            k: (v.tolist() if isinstance(v, np.ndarray) else v)
+            for k, v in oracle_test_best.items()
+        }
+    with metrics_path.open("w", encoding="utf-8") as f:
+        json.dump(metrics_payload, f, indent=2)
+    np.save(output_dir / "test_confusion_matrix.npy", test_metrics["cm"])
+    return {
+        "run_dir": output_dir,
+        "checkpoint": best_path,
+        "metrics": metrics_path,
+        "scaler": scaler_path,
+    }
+
+
+def train_and_evaluate(cfg: Mapping) -> Dict[str, Path]:
+    mm_cfg = cfg.get("multimodal", {})
+    train_on_train_val = bool(mm_cfg.get("train_on_train_val", False))
+    early_stopping = bool(mm_cfg.get("early_stopping", True))
+
+    if not train_on_train_val and early_stopping:
+        return _train_with_validation(cfg)
+    if train_on_train_val and not early_stopping:
+        return _train_final_fit(cfg)
+
+    raise ValueError(
+        "Unsupported multimodal training configuration: expected either "
+        "train_on_train_val=False with early_stopping=True (validation-selected), "
+        "or train_on_train_val=True with early_stopping=False (fixed-epoch final-fit); "
+        f"got train_on_train_val={train_on_train_val}, early_stopping={early_stopping}."
+    )

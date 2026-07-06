@@ -43,6 +43,8 @@ multimodal:
   train_batch_size: 128
   train_num_workers: 0
   train_epoch: 50
+  train_on_train_val: False
+  early_stopping: True
   patience: 10
   report_test_each_epoch: True
   print_epoch_metrics: True
