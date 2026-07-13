@@ -13,6 +13,7 @@ import torch
 
 from multimodal.artifacts import export_image_embeddings
 from multimodal.data import (
+    apply_cleaned_test_filter,
     image_embedding_dir,
     joined_table_dir,
     join_split_with_geo,
@@ -130,8 +131,11 @@ def build_joined_tables(cfg) -> dict[str, Path]:
 
     for split in ("train", "val", "test"):
         image_df = pd.read_parquet(image_dir / f"{split}.parquet")
+        image_df, cleaned_manifest = apply_cleaned_test_filter(cfg, split, image_df, file_column="file")
         joined_df, manifest, dropped_df = join_split_with_geo(image_df, geo_df)
         manifest["geo_dedup_stats"] = geo_stats
+        if cleaned_manifest is not None:
+            manifest["cleaned_test"] = cleaned_manifest
         outputs[split] = save_join_artifacts(split, joined_df, manifest, dropped_df, out_dir)["table"]
     return outputs
 

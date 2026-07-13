@@ -1,0 +1,32 @@
+dataset: 'cs'
+shots: 0
+subset_l3: []
+
+data:
+  dataset_paths:
+    - './data/CS_Xplots_2019_2023_train'
+  index_file_names:
+    - 'CS_Xplots_2019_23_NEW02OCT24.csv'
+  test_dataset_paths:
+    - './data/CS_Xplots_2019_2023_test'
+  test_index_file_names:
+    - 'CS_Xplots_2019_23_NEW02OCT24.csv'
+  cleaned_test:
+    enabled: True
+    review_csv: './data/CS_Xplots_2019_2023_test/image_list_25022026-SR-review.csv'
+  data_split:
+    valid_split: 0.01
+    split_seed: 42
+
+multimodal:
+  geo_embeddings_path: './data/cs_geo_gse_100m_20192023/CS_Xplots_embeddings_per_file_100m_public.parquet'
+  joined_table_tag: 'gse_100m_cleaned_test'
+  run_tag: 'gse_100m_cleaned_test'
+  fusion_mode: 'raw_concat'
+  tabular_modality_name: 'geo'
+  export_image_embeddings: True
+  build_joined_tables: True
+  train_classifier: True
+  report_test_each_epoch: True
+  print_epoch_metrics: True
+  max_samples_per_split: null

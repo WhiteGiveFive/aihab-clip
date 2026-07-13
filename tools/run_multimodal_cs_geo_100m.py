@@ -17,6 +17,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from multimodal.artifacts import export_image_embeddings
 from multimodal.data import (
     GEO_FEATURE_COLUMNS,
+    apply_cleaned_test_filter,
+    cleaned_test_enabled,
     deduplicate_geo_embeddings,
     image_embedding_dir,
     joined_table_dir,
@@ -28,8 +30,6 @@ from multimodal_main import build_joined_tables, load_configs, set_seed
 
 SPLITS = ("train", "val", "test")
 IMAGE_SOURCES = ("habitat_finetuned", "pretrained")
-EXPECTED_LOADED_ROWS = {"train": 4200, "test": 1398}
-EXPECTED_JOINED_ROWS = {"train": 4159, "val": 41, "test": 1398}
 SUMMARY_METRICS = ("loss", "top1_acc", "top3_acc", "f1", "mcc")
 
 
@@ -121,12 +121,20 @@ def validate_source_data(cfg: Mapping) -> Dict[str, object]:
     train = _load_inventory(cfg, "train")
     test = _load_inventory(cfg, "test")
     for split, frame in (("train", train), ("test", test)):
-        expected = EXPECTED_LOADED_ROWS[split]
-        if len(frame) != expected:
-            raise ValueError(f"Expected {expected} loaded {split} rows, found {len(frame)}")
         frame["file_lower"] = _assert_unique_nonempty_keys(
             frame, "file_names", f"loaded {split} inventory"
         )
+    test, cleaned_manifest = apply_cleaned_test_filter(
+        cfg,
+        "test",
+        test,
+        file_column="file_names",
+    )
+    test["file_lower"] = _assert_unique_nonempty_keys(
+        test,
+        "file_names",
+        "effective loaded test inventory",
+    )
 
     file_overlap = set(train["file_lower"]).intersection(test["file_lower"])
     if file_overlap:
@@ -186,6 +194,8 @@ def validate_source_data(cfg: Mapping) -> Dict[str, object]:
             "matched_rows": int(len(merged)),
             "missing_rows": 0,
         }
+        if split == "test" and cleaned_manifest is not None:
+            split_results[split]["cleaned_test"] = cleaned_manifest
 
     return {
         "geo_path": str(geo_path),
@@ -205,9 +215,11 @@ def _source_cfg(base_cfg: Mapping, seed: int, image_source: str) -> dict:
     cfg = copy.deepcopy(dict(base_cfg))
     cfg["seed"] = int(seed)
     mm_cfg = cfg.setdefault("multimodal", {})
+    joined_table_tag = mm_cfg.get("joined_table_tag", "gse_100m")
+    run_tag = mm_cfg.get("run_tag", joined_table_tag)
     mm_cfg["image_feature_source"] = str(image_source)
-    mm_cfg["joined_table_tag"] = "gse_100m"
-    mm_cfg["run_tag"] = "gse_100m"
+    mm_cfg["joined_table_tag"] = joined_table_tag
+    mm_cfg["run_tag"] = run_tag
     mm_cfg["report_test_each_epoch"] = False
     return cfg
 
@@ -249,6 +261,41 @@ def _joined_artifacts_exist(root: Path) -> bool:
     )
 
 
+def _joined_row_counts(cfg: Mapping) -> Dict[str, int] | None:
+    root = joined_table_dir(cfg)
+    counts: Dict[str, int] = {}
+    for split in SPLITS:
+        table_path = root / f"{split}.parquet"
+        if not table_path.exists():
+            return None
+        counts[split] = int(len(pd.read_parquet(table_path, columns=["file"])))
+    return counts
+
+
+def _validate_cleaned_test_manifest(cfg: Mapping, manifest: Mapping, row_count: int) -> None:
+    cleaned = manifest.get("cleaned_test", None)
+    if cleaned_test_enabled(cfg) and not isinstance(cleaned, Mapping):
+        raise ValueError("Cleaned test is enabled, but test manifest has no cleaned_test metadata")
+    if not isinstance(cleaned, Mapping):
+        return
+
+    required = {"input_rows", "removed_rows", "output_rows"}
+    missing = required.difference(cleaned)
+    if missing:
+        raise ValueError(f"Cleaned test manifest missing keys: {sorted(missing)}")
+    input_rows = int(cleaned["input_rows"])
+    removed_rows = int(cleaned["removed_rows"])
+    output_rows = int(cleaned["output_rows"])
+    image_rows = int(manifest.get("image_rows", -1))
+    if input_rows - removed_rows != output_rows:
+        raise ValueError(f"Cleaned test manifest row counts are inconsistent: {cleaned}")
+    if output_rows != row_count or image_rows != row_count:
+        raise ValueError(
+            "Cleaned test manifest row counts do not match the joined table: "
+            f"cleaned_output={output_rows}, image_rows={image_rows}, table_rows={row_count}"
+        )
+
+
 def validate_joined_artifacts(cfg: Mapping) -> Dict[str, dict]:
     root = joined_table_dir(cfg)
     results = {}
@@ -260,13 +307,12 @@ def validate_joined_artifacts(cfg: Mapping) -> Dict[str, dict]:
         with manifest_path.open("r", encoding="utf-8") as handle:
             manifest = json.load(handle)
         row_count = int(len(pd.read_parquet(table_path, columns=["file"])))
-        expected = EXPECTED_JOINED_ROWS[split]
-        if row_count != expected:
-            raise ValueError(f"Expected {expected} joined {split} rows, found {row_count}")
         if int(manifest.get("dropped_rows", -1)) != 0:
             raise ValueError(f"Joined {split} manifest reports dropped rows: {manifest}")
-        if int(manifest.get("matched_rows", -1)) != expected:
+        if int(manifest.get("matched_rows", -1)) != row_count:
             raise ValueError(f"Joined {split} manifest matched-row mismatch: {manifest}")
+        if split == "test":
+            _validate_cleaned_test_manifest(cfg, manifest, row_count)
         results[split] = {
             "rows": row_count,
             "dropped_rows": 0,
@@ -321,8 +367,11 @@ def _load_completed_metrics(cfg: Mapping) -> tuple[Path, dict] | None:
         return None
     if str(metrics["mode"]) != str(cfg["multimodal"]["fusion_mode"]):
         return None
+    row_counts = _joined_row_counts(cfg)
+    if row_counts is None:
+        return None
     for split in SPLITS:
-        if int(metrics[f"{split}_rows"]) != EXPECTED_JOINED_ROWS[split]:
+        if int(metrics[f"{split}_rows"]) != row_counts[split]:
             return None
     if not all(metric in metrics["val"] and metric in metrics["test"] for metric in SUMMARY_METRICS):
         return None
@@ -386,7 +435,8 @@ def _default_summary_dir(cfg: Mapping) -> Path:
     output = Path(str(cfg.get("multimodal", {}).get("output_dir", "./multimodal_artifacts")))
     if not output.is_absolute():
         output = Path(str(cfg.get("root_path", "./"))) / output
-    return output / "reports" / str(cfg.get("dataset", "cs")) / "gse_100m"
+    tag = str(cfg.get("multimodal", {}).get("joined_table_tag", "gse_100m"))
+    return output / "reports" / str(cfg.get("dataset", "cs")) / tag
 
 
 def write_summaries(rows: Sequence[Mapping], summary_dir: Path) -> Dict[str, Path]:

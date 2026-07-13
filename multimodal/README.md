@@ -41,6 +41,8 @@ The new multimodal workflow uses:
 
 - `configs/multimodal_base.yaml`
 - `configs/multimodal_cs.yaml`
+- `configs/multimodal_cs_geo_100m.yaml`
+- `configs/multimodal_cs_geo_100m_cleaned_test.yaml`
 
 Config merge order is:
 
@@ -305,6 +307,33 @@ If multiple geo rows exist for the same file:
 - fail fast if duplicate rows disagree
 
 This is intentional. Silent disagreement in geo features is treated as a data error.
+
+### Optional Cleaned Test Set
+
+The 100m CS 2019-2023 suite can evaluate on an expert-cleaned test set by enabling `data.cleaned_test`.
+
+Default config in `configs/multimodal_base.yaml` keeps this disabled:
+
+```yaml
+data:
+  cleaned_test:
+    enabled: False
+    review_csv: null
+    file_column: 'file_name'
+    flag_column: 'Confirm to remove (Yes/No)?'
+    remove_values:
+      - 'Yes'
+```
+
+When enabled, `build_joined_tables()` keeps the exported image embeddings unchanged, filters only the `test` image feature table before the geo join, and records the filtering details in `test_manifest.json` under `cleaned_test`. Train and validation tables are unchanged.
+
+The provided `configs/multimodal_cs_geo_100m_cleaned_test.yaml` uses:
+
+- review CSV: `data/CS_Xplots_2019_2023_test/image_list_25022026-SR-review.csv`
+- removed flag: `Confirm to remove (Yes/No)? == Yes`
+- distinct artifact tags: `gse_100m_cleaned_test`
+
+With the current review CSV, validation reports 1,398 original test rows, 51 removed rows, and 1,347 cleaned test rows. The same cleaned joined test table is used by `image_only`, `geo_only`, and `raw_concat`.
 
 ## Exported Image Embedding Schema
 
@@ -591,9 +620,42 @@ python tools/run_multimodal_cs_geo_100m.py --inspect_only --seeds 1 2 3 4 5
 python tools/run_multimodal_cs_geo_100m.py --seeds 1 2 3 4 5
 ```
 
-For every seed, the runner trains fine-tuned and pretrained `image_only` models, one shared `geo_only` model, and fine-tuned and pretrained `raw_concat` models. It requires complete joined splits of 4,159 train, 41 validation, and 1,398 test rows. Valid runs are resumed automatically, and suite reports are written under `multimodal_artifacts/reports/cs/gse_100m/`.
+For every seed, the runner trains fine-tuned and pretrained `image_only` models, one shared `geo_only` model, and fine-tuned and pretrained `raw_concat` models. The runner validates the current source and joined artifacts dynamically, resumes valid completed runs, and writes suite reports under `multimodal_artifacts/reports/cs/<joined_table_tag>/`.
 
-### 8. CS2007 image + soil projected fusion
+### 8. Full CS 2019-2023 image + 100m GSE suite with cleaned test set
+
+Use the cleaned-test dataset config to exclude expert-confirmed unreliable test samples from the joined test table:
+
+```bash
+python tools/run_multimodal_cs_geo_100m.py \
+  --dataset_config configs/multimodal_cs_geo_100m_cleaned_test.yaml \
+  --validate_data_only \
+  --seeds 1
+```
+
+Runnable example script:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+PYTHON=${PYTHON:-/home/hshi/anaconda3/envs/habcls/bin/python}
+CONFIG=configs/multimodal_cs_geo_100m_cleaned_test.yaml
+SEEDS=(1 2 3 4 5)
+
+$PYTHON tools/run_multimodal_cs_geo_100m.py \
+  --dataset_config "$CONFIG" \
+  --validate_data_only \
+  --seeds "${SEEDS[@]}"
+
+$PYTHON tools/run_multimodal_cs_geo_100m.py \
+  --dataset_config "$CONFIG" \
+  --seeds "${SEEDS[@]}"
+```
+
+This run reuses full image embedding exports, builds cleaned joined tables under `joined_table_tag: gse_100m_cleaned_test`, writes model outputs under `run_tag: gse_100m_cleaned_test`, and writes reports under `multimodal_artifacts/reports/cs/gse_100m_cleaned_test/`.
+
+### 9. CS2007 image + soil projected fusion
 
 ```bash
 python tools/run_multimodal_cs2007_soil.py \
@@ -626,7 +688,7 @@ python tools/run_multimodal_cs2007_soil.py \
   --opts multimodal.fusion_mode soil_raw_concat
 ```
 
-### 9. CS2007 soil projection-dimension grid search
+### 10. CS2007 soil projection-dimension grid search
 
 ```bash
 python tools/run_multimodal_cs2007_soil_projection_grid.py \
@@ -649,7 +711,7 @@ The aggregate grid results are saved by default under:
 multimodal_artifacts/runs/cs2007_soil_aligned/<encoder>/soil_projected_concat/projection_dim_grid/seed1/
 ```
 
-### 10. Image-only baseline on the geo-matched subset with reused joined table
+### 11. Image-only baseline on the geo-matched subset with reused joined table
 
 ```bash
 python multimodal_main.py \

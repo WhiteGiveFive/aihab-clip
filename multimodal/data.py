@@ -33,6 +33,8 @@ IMAGE_METADATA_COLUMNS = [
     "image_source",
     "split",
 ]
+DEFAULT_CLEANED_TEST_FILE_COLUMN = "file_name"
+DEFAULT_CLEANED_TEST_FLAG_COLUMN = "Confirm to remove (Yes/No)?"
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,13 @@ class SplitBundle:
 
 def _lower_file_series(values: Iterable[str]) -> pd.Series:
     return pd.Series([str(v).strip().lower() for v in values], dtype="string")
+
+
+def _resolve_cfg_path(value: str | Path, cfg: Mapping) -> Path:
+    path = Path(str(value))
+    if path.is_absolute():
+        return path
+    return Path(cfg.get("root_path", "./")) / path
 
 
 def _resolve_output_root(cfg: Mapping) -> Path:
@@ -436,6 +445,100 @@ def tabular_feature_columns(cfg: Mapping) -> List[str]:
     if tabular_modality_name(cfg) == "soil":
         return list(SOIL_FEATURE_COLUMNS)
     return list(GEO_FEATURE_COLUMNS)
+
+
+def cleaned_test_enabled(cfg: Mapping) -> bool:
+    clean_cfg = cfg.get("data", {}).get("cleaned_test", {}) or {}
+    return bool(clean_cfg.get("enabled", False))
+
+
+def _cleaned_test_cfg(cfg: Mapping) -> Mapping:
+    return cfg.get("data", {}).get("cleaned_test", {}) or {}
+
+
+def load_cleaned_test_removed_files(cfg: Mapping) -> Tuple[set[str], Dict[str, object]]:
+    clean_cfg = _cleaned_test_cfg(cfg)
+    if not bool(clean_cfg.get("enabled", False)):
+        return set(), {"enabled": False}
+
+    review_csv = clean_cfg.get("review_csv", None)
+    if not review_csv:
+        raise ValueError("data.cleaned_test.review_csv is required when cleaned_test.enabled is true")
+    review_path = _resolve_cfg_path(review_csv, cfg)
+    if not review_path.exists():
+        raise FileNotFoundError(f"Cleaned test review CSV not found: {review_path}")
+
+    file_col = str(clean_cfg.get("file_column", DEFAULT_CLEANED_TEST_FILE_COLUMN))
+    flag_col = str(clean_cfg.get("flag_column", DEFAULT_CLEANED_TEST_FLAG_COLUMN))
+    remove_values_raw = clean_cfg.get("remove_values", ["Yes"])
+    if isinstance(remove_values_raw, (str, int, float, bool)):
+        remove_values_raw = [remove_values_raw]
+    remove_values = [str(value) for value in remove_values_raw]
+    remove_value_keys = {value.strip().lower() for value in remove_values}
+    if not remove_value_keys:
+        raise ValueError("data.cleaned_test.remove_values must contain at least one value")
+
+    review = pd.read_csv(review_path, encoding="utf-8-sig")
+    missing = {file_col, flag_col}.difference(review.columns)
+    if missing:
+        raise ValueError(f"Cleaned test review CSV missing columns: {sorted(missing)}")
+
+    flags = review[flag_col].astype(str).str.strip().str.lower()
+    remove_mask = flags.isin(remove_value_keys)
+    removed_files = _lower_file_series(review.loc[remove_mask, file_col])
+    blank = removed_files.isna() | (removed_files.fillna("") == "")
+    if bool(blank.any()):
+        raise ValueError(f"Cleaned test review CSV contains {int(blank.sum())} blank removal file names")
+
+    removed_set = set(removed_files.tolist())
+    metadata = {
+        "enabled": True,
+        "review_csv": str(review_path),
+        "file_column": file_col,
+        "flag_column": flag_col,
+        "remove_values": remove_values,
+        "review_rows": int(len(review)),
+        "flagged_rows": int(remove_mask.sum()),
+        "flagged_unique_files": int(len(removed_set)),
+    }
+    return removed_set, metadata
+
+
+def apply_cleaned_test_filter(
+    cfg: Mapping,
+    split: str,
+    frame: pd.DataFrame,
+    file_column: str = "file",
+) -> Tuple[pd.DataFrame, Dict[str, object] | None]:
+    if str(split) != "test" or not cleaned_test_enabled(cfg):
+        return frame, None
+    if file_column not in frame.columns:
+        raise ValueError(f"Cleaned test filtering requires column '{file_column}'")
+
+    removed_files, metadata = load_cleaned_test_removed_files(cfg)
+    input_rows = int(len(frame))
+    frame_keys = _lower_file_series(frame[file_column])
+    frame_key_set = set(frame_keys.tolist())
+    missing = sorted(removed_files.difference(frame_key_set))
+    if missing:
+        raise ValueError(
+            "Cleaned test review flags files absent from the test split: "
+            f"{missing[:20]}"
+        )
+
+    remove_mask = frame_keys.isin(removed_files).to_numpy()
+    removed_preview = frame.loc[remove_mask, file_column].astype(str).head(20).tolist()
+    filtered = frame.loc[~remove_mask].reset_index(drop=True)
+
+    metadata.update(
+        {
+            "input_rows": input_rows,
+            "removed_rows": int(remove_mask.sum()),
+            "output_rows": int(len(filtered)),
+            "removed_files_preview": removed_preview,
+        }
+    )
+    return filtered, metadata
 
 
 def join_split_with_geo(image_split_df: pd.DataFrame, geo_df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, object], pd.DataFrame]:

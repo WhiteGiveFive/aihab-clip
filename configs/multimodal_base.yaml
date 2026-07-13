@@ -13,6 +13,13 @@ data:
   batch_size: 16
   shuffle: True
   num_workers: 0
+  cleaned_test:
+    enabled: False
+    review_csv: null
+    file_column: 'file_name'
+    flag_column: 'Confirm to remove (Yes/No)?'
+    remove_values:
+      - 'Yes'
   data_split:
     valid_split: 0.01
     split_seed: 42
