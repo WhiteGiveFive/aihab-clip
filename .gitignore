@@ -47,6 +47,7 @@ results_lr/
 # --- Notebooks checkpoints ---
 .ipynb_checkpoints/
 notebooks/*
+!notebooks/multimodal_baseline_agreement_single_seed.ipynb
 
 # --- Torch / CUDA caches ---
 .cache/
