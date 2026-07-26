@@ -1,0 +1,25 @@
+dataset: 'cs'
+shots: 0
+subset_l3: []
+
+data:
+  cleaned_test:
+    enabled: True
+    review_csv: './data/CS_Xplots_2019_2023_test/image_list_25022026-SR-review.csv'
+
+multimodal:
+  target_level: 'l2'
+  geo_embeddings_path: './data/cs_geo_gse_100m_20192023/CS_Xplots_embeddings_per_file_100m_public.parquet'
+  joined_table_tag: 'gse_100m_cleaned_test'
+  run_tag: 'gse_100m_cleaned_test_l2'
+  prebuilt_joined_tables_only: True
+  suite_image_sources:
+    - 'habitat_finetuned'
+  fusion_mode: 'raw_concat'
+  tabular_modality_name: 'geo'
+  export_image_embeddings: False
+  build_joined_tables: False
+  train_classifier: True
+  report_test_each_epoch: True
+  print_epoch_metrics: True
+  max_samples_per_split: null

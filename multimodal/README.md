@@ -655,6 +655,23 @@ $PYTHON tools/run_multimodal_cs_geo_100m.py \
 
 This run reuses full image embedding exports, builds cleaned joined tables under `joined_table_tag: gse_100m_cleaned_test`, writes model outputs under `run_tag: gse_100m_cleaned_test`, and writes reports under `multimodal_artifacts/reports/cs/gse_100m_cleaned_test/`.
 
+#### Native L2 classifiers from immutable cleaned joined tables
+
+The L2 configuration consumes the existing habitat-finetuned joined tables without
+exporting embeddings, rebuilding joins, or changing the stored train/validation/test
+assignments. It trains direct L2 heads for `image_only`, `geo_only`, and `raw_concat`:
+
+```bash
+python tools/run_multimodal_cs_geo_100m.py \
+  --dataset_config configs/multimodal_cs_geo_100m_cleaned_test_l2.yaml \
+  --seeds 1 2 3 4
+```
+
+The observed training taxonomy has nine L2 classes with canonical IDs
+`0,1,2,3,4,5,6,7,10`, which are densely remapped to `0..8`. L2 checkpoints and
+reports are isolated under `target_l2`. Prebuilt-only mode fails if its joined tables
+are missing and rejects all force-export or force-join options.
+
 ### 9. CS2007 image + soil projected fusion
 
 ```bash

@@ -26,7 +26,24 @@ from multimodal.data import (
     tabular_feature_columns,
     tabular_modality_name,
 )
-from multimodal.models import ConcatFusion, IdentityEncoder, LateFusionClassifier, MLPHead, TabularProjectionEncoder
+from multimodal.labels import (
+    FINGERPRINT_COLUMNS,
+    TARGET_ID_COLUMN,
+    TargetEncoding,
+    TargetSpec,
+    build_target_encoding,
+    materialize_target_ids,
+    resolve_target_spec,
+    split_fingerprints,
+    target_metadata,
+)
+from multimodal.models import (
+    ConcatFusion,
+    IdentityEncoder,
+    LateFusionClassifier,
+    MLPHead,
+    TabularProjectionEncoder,
+)
 
 
 def _device() -> torch.device:
@@ -120,8 +137,21 @@ def _apply_tabular_standardization(frame: pd.DataFrame, stats: Mapping[str, Sequ
     return out
 
 
-def _build_dataloader(frame: pd.DataFrame, mode: str, feature_cols: Sequence[str], batch_size: int, num_workers: int, shuffle: bool) -> DataLoader:
-    ds = FeatureTableDataset(frame, mode=mode, tabular_cols=feature_cols)
+def _build_dataloader(
+    frame: pd.DataFrame,
+    mode: str,
+    feature_cols: Sequence[str],
+    batch_size: int,
+    num_workers: int,
+    shuffle: bool,
+    target_col: str = "label_id",
+) -> DataLoader:
+    ds = FeatureTableDataset(
+        frame,
+        mode=mode,
+        tabular_cols=feature_cols,
+        target_col=target_col,
+    )
     return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True)
 
 
@@ -144,14 +174,22 @@ def _build_tabular_encoder(tabular_dim: int, mode: str, mm_cfg: Mapping) -> tupl
     return IdentityEncoder(), tabular_dim
 
 
-def _build_model(cfg: Mapping, train_df: pd.DataFrame, feature_cols: Sequence[str]) -> LateFusionClassifier:
+def _build_model(
+    cfg: Mapping,
+    train_df: pd.DataFrame,
+    feature_cols: Sequence[str],
+    num_classes: int | None = None,
+) -> LateFusionClassifier:
     mm_cfg = cfg.get("multimodal", {})
     mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
     hidden_dim = int(mm_cfg.get("hidden_dim", 256))
     dropout = float(mm_cfg.get("dropout", 0.1))
     image_dim = len(image_feature_columns(train_df))
     tabular_dim = len(feature_cols)
-    num_classes = int(train_df["label_id"].nunique())
+    if num_classes is None:
+        num_classes = int(train_df["label_id"].nunique())
+    if int(num_classes) <= 0:
+        raise ValueError("num_classes must be greater than zero.")
     tabular_encoder, tabular_out_dim = _build_tabular_encoder(tabular_dim, mode, mm_cfg)
 
     if mode == "image_only":
@@ -179,31 +217,49 @@ def _build_model(cfg: Mapping, train_df: pd.DataFrame, feature_cols: Sequence[st
 def _reindex_labels(
     tables: Mapping[str, pd.DataFrame],
     training_split_name: str = "geo-matched train split",
+    target_spec: TargetSpec | None = None,
 ) -> tuple[Dict[str, pd.DataFrame], Dict[int, int], list[str]]:
-    train_df = tables["train"]
-    if train_df.empty:
-        raise ValueError("Joined train split is empty after geo matching.")
+    spec = target_spec or resolve_target_spec({})
+    encoding = build_target_encoding(
+        tables,
+        spec,
+        training_split_name=training_split_name,
+    )
+    remapped = materialize_target_ids(tables, encoding)
+    if spec.level == "l3":
+        # Keep the legacy private-helper contract used by agreement analysis.
+        # The training paths use _prepare_targets and never overwrite source labels.
+        for frame in remapped.values():
+            frame["label_id"] = frame[TARGET_ID_COLUMN]
+    return remapped, dict(encoding.target_id_remap), list(encoding.class_names)
 
-    kept_labels = sorted(int(v) for v in train_df["label_id"].astype(int).unique().tolist())
-    label_map = {old: idx for idx, old in enumerate(kept_labels)}
-    class_names = []
-    for old in kept_labels:
-        rows = train_df[train_df["label_id"].astype(int) == old]
-        class_names.append(str(rows.iloc[0]["label_name"]))
 
-    remapped = {}
-    for split, frame in tables.items():
-        if frame.empty:
-            raise ValueError(f"Joined {split} split is empty after geo matching.")
-        unseen = sorted(set(frame["label_id"].astype(int).unique().tolist()).difference(label_map))
-        if unseen:
-            raise ValueError(
-                f"Joined {split} split contains labels absent from the {training_split_name}: {unseen}"
-            )
-        out = frame.copy()
-        out["label_id"] = out["label_id"].astype(int).map(label_map).astype(int)
-        remapped[split] = out
-    return remapped, label_map, class_names
+def _prepare_targets(
+    tables: Mapping[str, pd.DataFrame],
+    cfg: Mapping,
+    training_split_name: str,
+) -> tuple[Dict[str, pd.DataFrame], TargetEncoding]:
+    spec = resolve_target_spec(cfg)
+    encoding = build_target_encoding(
+        tables,
+        spec,
+        training_split_name=training_split_name,
+    )
+    return materialize_target_ids(tables, encoding), encoding
+
+
+def _source_split_fingerprints(
+    tables: Mapping[str, pd.DataFrame],
+    target_spec: TargetSpec,
+) -> Dict[str, str] | None:
+    has_fingerprint_columns = all(
+        set(FINGERPRINT_COLUMNS).issubset(frame.columns)
+        for split, frame in tables.items()
+        if split in {"train", "val", "test"}
+    )
+    if target_spec.level == "l2" or has_fingerprint_columns:
+        return split_fingerprints(tables)
+    return None
 
 
 def _evaluate(model: nn.Module, loader: DataLoader, num_classes: int, device: torch.device):
@@ -310,13 +366,21 @@ def _print_epoch_metrics(epoch: int,
 
 
 def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
-    tables = load_joined_splits(cfg)
+    source_tables = load_joined_splits(cfg)
     mm_cfg = cfg.get("multimodal", {})
     mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
     feature_cols = tabular_feature_columns(cfg)
     modality_name = tabular_modality_name(cfg)
 
-    tables, label_map, class_names = _reindex_labels(tables)
+    target_spec = resolve_target_spec(cfg)
+    fingerprints = _source_split_fingerprints(source_tables, target_spec)
+    tables, encoding = _prepare_targets(
+        source_tables,
+        cfg,
+        training_split_name="geo-matched train split",
+    )
+    artifact_target_metadata = target_metadata(encoding, fingerprints)
+    num_classes = encoding.num_classes
     tabular_stats = _compute_tabular_stats(tables["train"], feature_cols)
     tables = {split: _apply_tabular_standardization(frame, tabular_stats, feature_cols) for split, frame in tables.items()}
 
@@ -329,12 +393,41 @@ def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
     report_test_each_epoch = bool(mm_cfg.get("report_test_each_epoch", True))
     print_epoch_metrics = bool(mm_cfg.get("print_epoch_metrics", True))
 
-    train_loader = _build_dataloader(tables["train"], mode=mode, feature_cols=feature_cols, batch_size=batch_size, num_workers=num_workers, shuffle=True)
-    val_loader = _build_dataloader(tables["val"], mode=mode, feature_cols=feature_cols, batch_size=batch_size, num_workers=num_workers, shuffle=False)
-    test_loader = _build_dataloader(tables["test"], mode=mode, feature_cols=feature_cols, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+    train_loader = _build_dataloader(
+        tables["train"],
+        mode=mode,
+        feature_cols=feature_cols,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=True,
+        target_col=TARGET_ID_COLUMN,
+    )
+    val_loader = _build_dataloader(
+        tables["val"],
+        mode=mode,
+        feature_cols=feature_cols,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=False,
+        target_col=TARGET_ID_COLUMN,
+    )
+    test_loader = _build_dataloader(
+        tables["test"],
+        mode=mode,
+        feature_cols=feature_cols,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=False,
+        target_col=TARGET_ID_COLUMN,
+    )
 
     device = _device()
-    model = _build_model(cfg, tables["train"], feature_cols).to(device)
+    model = _build_model(
+        cfg,
+        tables["train"],
+        feature_cols,
+        num_classes=num_classes,
+    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss()
 
@@ -349,8 +442,7 @@ def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
                 "feature_columns": list(feature_cols),
                 "mean": tabular_stats["mean"],
                 "std": tabular_stats["std"],
-                "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
-                "class_names": class_names,
+                **artifact_target_metadata,
             },
             f,
             indent=2,
@@ -377,10 +469,10 @@ def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
             total_loss += loss.item() * len(targets)
             total_seen += len(targets)
 
-        val_metrics = _evaluate(model, val_loader, int(tables["train"]["label_id"].nunique()), device)
+        val_metrics = _evaluate(model, val_loader, num_classes, device)
         test_metrics_epoch = None
         if report_test_each_epoch:
-            test_metrics_epoch = _evaluate(model, test_loader, int(tables["train"]["label_id"].nunique()), device)
+            test_metrics_epoch = _evaluate(model, test_loader, num_classes, device)
 
         avg_train_loss = total_loss / max(total_seen, 1)
         history.append(_history_payload(avg_train_loss, epoch + 1, val_metrics, test_metrics_epoch))
@@ -389,7 +481,14 @@ def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
         if val_metrics["top1_acc"] > best_acc:
             best_acc = float(val_metrics["top1_acc"])
             patience = 0
-            torch.save({"model_state": model.state_dict(), "mode": mode}, best_path)
+            torch.save(
+                {
+                    "model_state": model.state_dict(),
+                    "mode": mode,
+                    **artifact_target_metadata,
+                },
+                best_path,
+            )
         else:
             patience += 1
             if patience > patience_limit:
@@ -398,8 +497,8 @@ def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
     checkpoint = torch.load(best_path, map_location=device)
     model.load_state_dict(checkpoint["model_state"])
 
-    val_metrics = _evaluate(model, val_loader, int(tables["train"]["label_id"].nunique()), device)
-    test_metrics = _evaluate(model, test_loader, int(tables["train"]["label_id"].nunique()), device)
+    val_metrics = _evaluate(model, val_loader, num_classes, device)
+    test_metrics = _evaluate(model, test_loader, num_classes, device)
     metrics_path = output_dir / "metrics.json"
     with metrics_path.open("w", encoding="utf-8") as f:
         json.dump(
@@ -411,8 +510,7 @@ def _train_with_validation(cfg: Mapping) -> Dict[str, Path]:
                 "report_test_each_epoch": report_test_each_epoch,
                 "tabular_modality_name": modality_name,
                 "tabular_feature_columns": list(feature_cols),
-                "class_names": class_names,
-                "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
+                **artifact_target_metadata,
                 "history": history,
                 "val": {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in val_metrics.items()},
                 "test": {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in test_metrics.items()},
@@ -480,15 +578,19 @@ def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
 
     source_train_rows = int(len(source_tables["train"]))
     source_val_rows = int(len(source_tables["val"]))
+    target_spec = resolve_target_spec(cfg)
+    fingerprints = _source_split_fingerprints(source_tables, target_spec)
     combined_train = pd.concat(
         [source_tables["train"], source_tables["val"]],
         axis=0,
         ignore_index=True,
     )
-    tables, label_map, class_names = _reindex_labels(
+    tables, encoding = _prepare_targets(
         {"train": combined_train, "test": source_tables["test"]},
+        cfg,
         training_split_name="combined train+validation split",
     )
+    artifact_target_metadata = target_metadata(encoding, fingerprints)
 
     mm_cfg = cfg.get("multimodal", {})
     mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
@@ -517,6 +619,7 @@ def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
         batch_size=batch_size,
         num_workers=num_workers,
         shuffle=True,
+        target_col=TARGET_ID_COLUMN,
     )
     test_loader = _build_dataloader(
         tables["test"],
@@ -525,13 +628,19 @@ def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
         batch_size=batch_size,
         num_workers=num_workers,
         shuffle=False,
+        target_col=TARGET_ID_COLUMN,
     )
 
     device = _device()
-    model = _build_model(cfg, tables["train"], feature_cols).to(device)
+    model = _build_model(
+        cfg,
+        tables["train"],
+        feature_cols,
+        num_classes=encoding.num_classes,
+    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss()
-    num_classes = int(tables["train"]["label_id"].nunique())
+    num_classes = encoding.num_classes
 
     output_dir = run_dir(cfg)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -549,8 +658,7 @@ def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
                 "feature_columns": list(feature_cols),
                 "mean": tabular_stats["mean"],
                 "std": tabular_stats["std"],
-                "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
-                "class_names": class_names,
+                **artifact_target_metadata,
                 "fit_split": "train_val",
                 "fit_rows": int(len(tables["train"])),
             },
@@ -605,6 +713,7 @@ def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
                         "selection_split": "test",
                         "selection_metric": "top1_acc",
                         "diagnostic_only": True,
+                        **artifact_target_metadata,
                     },
                     oracle_checkpoint_path,
                 )
@@ -625,6 +734,7 @@ def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
             "mode": mode,
             "epoch": epochs,
             "training_regime": "fixed_epoch_train_val",
+            **artifact_target_metadata,
         },
         best_path,
     )
@@ -644,8 +754,7 @@ def _train_final_fit(cfg: Mapping) -> Dict[str, Path]:
         "report_test_each_epoch": report_test_each_epoch,
         "tabular_modality_name": modality_name,
         "tabular_feature_columns": list(feature_cols),
-        "class_names": class_names,
-        "label_id_remap": {str(k): int(v) for k, v in label_map.items()},
+        **artifact_target_metadata,
         "history": history,
         "val": {},
         "test": {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in test_metrics.items()},

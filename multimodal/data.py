@@ -19,6 +19,7 @@ from data.dataloader import (
     few_shot_indices,
 )
 from data.dataset import image_loader
+from multimodal.labels import resolve_target_spec
 
 
 GEO_FEATURE_COLUMNS = [f"A{i:02d}" for i in range(64)]
@@ -101,7 +102,11 @@ def joined_table_dir(cfg: Mapping) -> Path:
 def run_dir(cfg: Mapping) -> Path:
     mm_cfg = cfg.get("multimodal", {})
     fusion_mode = str(mm_cfg.get("fusion_mode", "raw_concat")).lower()
-    root = _resolve_output_root(cfg) / "runs" / str(cfg.get("dataset", "cs")) / _encoder_tag(cfg) / fusion_mode
+    target_spec = resolve_target_spec(cfg)
+    root = _resolve_output_root(cfg) / "runs" / str(cfg.get("dataset", "cs")) / _encoder_tag(cfg)
+    if target_spec.level == "l2":
+        root = root / "target_l2"
+    root = root / fusion_mode
     run_tag = mm_cfg.get("run_tag", None)
     if run_tag:
         root = root / _sanitize_name(str(run_tag))
@@ -590,9 +595,16 @@ def load_joined_splits(cfg: Mapping) -> Dict[str, pd.DataFrame]:
 
 
 class FeatureTableDataset(Dataset):
-    def __init__(self, frame: pd.DataFrame, mode: str, tabular_cols: Sequence[str] | None = None):
+    def __init__(
+        self,
+        frame: pd.DataFrame,
+        mode: str,
+        tabular_cols: Sequence[str] | None = None,
+        target_col: str = "label_id",
+    ):
         self.frame = frame.reset_index(drop=True)
         self.mode = mode
+        self.target_col = str(target_col)
         self.image_cols = image_feature_columns(self.frame)
         self.tabular_cols = list(tabular_cols or GEO_FEATURE_COLUMNS)
         if not self.image_cols:
@@ -600,7 +612,12 @@ class FeatureTableDataset(Dataset):
         missing = [c for c in self.tabular_cols if c not in self.frame.columns]
         if missing:
             raise ValueError(f"Joined feature table is missing tabular feature columns: {missing}")
-        self.labels = torch.tensor(self.frame["label_id"].astype(int).to_numpy(), dtype=torch.long)
+        if self.target_col not in self.frame.columns:
+            raise ValueError(f"Joined feature table is missing target column: {self.target_col}")
+        self.labels = torch.tensor(
+            self.frame[self.target_col].astype(int).to_numpy(),
+            dtype=torch.long,
+        )
 
     def __len__(self) -> int:
         return len(self.frame)

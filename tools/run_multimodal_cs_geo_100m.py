@@ -20,9 +20,16 @@ from multimodal.data import (
     apply_cleaned_test_filter,
     cleaned_test_enabled,
     deduplicate_geo_embeddings,
+    image_feature_columns,
     image_embedding_dir,
     joined_table_dir,
     run_dir,
+)
+from multimodal.labels import (
+    build_target_encoding,
+    resolve_target_spec,
+    split_fingerprints,
+    target_metadata,
 )
 from multimodal.trainer import train_and_evaluate
 from multimodal_main import build_joined_tables, load_configs, set_seed
@@ -30,6 +37,7 @@ from multimodal_main import build_joined_tables, load_configs, set_seed
 
 SPLITS = ("train", "val", "test")
 IMAGE_SOURCES = ("habitat_finetuned", "pretrained")
+PREBUILT_MODES = ("image_only", "geo_only", "raw_concat")
 SUMMARY_METRICS = ("loss", "top1_acc", "top3_acc", "f1", "mcc")
 
 
@@ -65,6 +73,55 @@ def _as_list(value) -> list:
     if isinstance(value, (str, Path)):
         return [value]
     return list(value)
+
+
+def _target_level(cfg: Mapping) -> str:
+    return str(cfg.get("multimodal", {}).get("target_level", "l3")).strip().lower()
+
+
+def _prebuilt_joined_tables_only(cfg: Mapping) -> bool:
+    return bool(cfg.get("multimodal", {}).get("prebuilt_joined_tables_only", False))
+
+
+def _configured_suite_sources(cfg: Mapping) -> list[str]:
+    value = cfg.get("multimodal", {}).get("suite_image_sources", IMAGE_SOURCES)
+    sources = [str(item).strip().lower() for item in _as_list(value)]
+    if not sources or any(not source for source in sources):
+        raise ValueError("multimodal.suite_image_sources must contain at least one source")
+    if len(sources) != len(set(sources)):
+        raise ValueError(f"Duplicate multimodal.suite_image_sources: {sources}")
+    unknown = sorted(set(sources).difference(IMAGE_SOURCES))
+    if unknown:
+        raise ValueError(f"Unsupported multimodal.suite_image_sources: {unknown}")
+    return sources
+
+
+def _validate_prebuilt_settings(cfg: Mapping, force_export: bool, force_join: bool) -> None:
+    if not _prebuilt_joined_tables_only(cfg):
+        return
+    if force_export or force_join:
+        raise ValueError(
+            "Prebuilt joined-table mode rejects force-export and force-join options"
+        )
+    mm_cfg = cfg.get("multimodal", {})
+    if _target_level(cfg) != "l2":
+        raise ValueError(
+            "Prebuilt joined-table suite mode requires multimodal.target_level: l2"
+        )
+    if bool(mm_cfg.get("export_image_embeddings", False)):
+        raise ValueError(
+            "multimodal.export_image_embeddings must be false in prebuilt joined-table mode"
+        )
+    if bool(mm_cfg.get("build_joined_tables", False)):
+        raise ValueError(
+            "multimodal.build_joined_tables must be false in prebuilt joined-table mode"
+        )
+    sources = _configured_suite_sources(cfg)
+    if sources != ["habitat_finetuned"]:
+        raise ValueError(
+            "Prebuilt joined-table mode requires exactly "
+            "multimodal.suite_image_sources: [habitat_finetuned]"
+        )
 
 
 def _loaded_inventory_paths(cfg: Mapping, split: str) -> list[Path]:
@@ -236,6 +293,14 @@ def _run_cfg(source_cfg: Mapping, mode: str) -> dict:
 
 def suite_run_configs(base_cfg: Mapping, seeds: Sequence[int]) -> list[dict]:
     configs = []
+    if _prebuilt_joined_tables_only(base_cfg):
+        _validate_prebuilt_settings(base_cfg, force_export=False, force_join=False)
+        source = _configured_suite_sources(base_cfg)[0]
+        for seed in seeds:
+            source_cfg = _source_cfg(base_cfg, seed, source)
+            configs.extend(_run_cfg(source_cfg, mode) for mode in PREBUILT_MODES)
+        return configs
+
     for seed in seeds:
         fine = _source_cfg(base_cfg, seed, "habitat_finetuned")
         pretrained = _source_cfg(base_cfg, seed, "pretrained")
@@ -321,11 +386,189 @@ def validate_joined_artifacts(cfg: Mapping) -> Dict[str, dict]:
     return results
 
 
+def _load_joined_tables(cfg: Mapping) -> Dict[str, pd.DataFrame]:
+    root = joined_table_dir(cfg)
+    return {
+        split: pd.read_parquet(root / f"{split}.parquet")
+        for split in SPLITS
+    }
+
+
+def _finite_feature_matrix(
+    frame: pd.DataFrame,
+    columns: Sequence[str],
+    split: str,
+    modality: str,
+) -> None:
+    try:
+        values = frame[list(columns)].to_numpy(dtype=np.float64)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"Prebuilt {split} {modality} features must be numeric"
+        ) from exc
+    if not np.isfinite(values).all():
+        raise ValueError(
+            f"Prebuilt {split} {modality} features contain NaN or infinite values"
+        )
+
+
+def _strict_manifest_dimensions(
+    cfg: Mapping,
+    split: str,
+    row_count: int,
+    image_dim: int,
+) -> None:
+    manifest_path = joined_table_dir(cfg) / f"{split}_manifest.json"
+    with manifest_path.open("r", encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    expected = {
+        "split": split,
+        "image_rows": int(row_count),
+        "matched_rows": int(row_count),
+        "dropped_rows": 0,
+        "image_feature_dim": int(image_dim),
+        "geo_feature_dim": int(len(GEO_FEATURE_COLUMNS)),
+    }
+    mismatches = {
+        key: {"expected": value, "actual": manifest.get(key)}
+        for key, value in expected.items()
+        if manifest.get(key) != value
+    }
+    if mismatches:
+        raise ValueError(
+            f"Prebuilt {split} manifest does not match its joined table: {mismatches}"
+        )
+
+
+def validate_prebuilt_joined_artifacts(cfg: Mapping) -> Dict[str, object]:
+    """Validate immutable joined parquets without rebuilding their source artifacts."""
+    results: Dict[str, object] = dict(validate_joined_artifacts(cfg))
+    tables = _load_joined_tables(cfg)
+    image_columns: list[str] | None = None
+    file_keys: Dict[str, set[str]] = {}
+    plot_keys: Dict[str, set[str]] = {}
+    target_sets: Dict[str, set[int]] = {}
+
+    for split, frame in tables.items():
+        if frame.empty:
+            raise ValueError(f"Prebuilt joined {split} table is empty")
+        required = {"file", "plot_idx", "l2_label", *GEO_FEATURE_COLUMNS}
+        missing = sorted(required.difference(frame.columns))
+        if missing:
+            raise ValueError(
+                f"Prebuilt joined {split} table is missing required columns: {missing}"
+            )
+
+        current_image_columns = image_feature_columns(frame)
+        if not current_image_columns:
+            raise ValueError(
+                f"Prebuilt joined {split} table has no image feature columns (I*)"
+            )
+        if image_columns is None:
+            image_columns = current_image_columns
+        elif current_image_columns != image_columns:
+            raise ValueError(
+                f"Prebuilt joined {split} image feature schema differs across splits"
+            )
+
+        normalized_files = _assert_unique_nonempty_keys(
+            frame, "file", f"prebuilt joined {split} table"
+        )
+        normalized_plots = _normalized_keys(frame["plot_idx"])
+        blank_plots = normalized_plots.isna() | (normalized_plots.fillna("") == "")
+        if bool(blank_plots.any()):
+            raise ValueError(
+                f"Prebuilt joined {split} table contains "
+                f"{int(blank_plots.sum())} blank plot keys"
+            )
+
+        l2_numeric = pd.to_numeric(frame["l2_label"], errors="coerce").to_numpy(
+            dtype=np.float64
+        )
+        if not np.isfinite(l2_numeric).all():
+            raise ValueError(
+                f"Prebuilt joined {split} table contains missing or invalid L2 labels"
+            )
+        if not np.equal(l2_numeric, np.floor(l2_numeric)).all():
+            raise ValueError(
+                f"Prebuilt joined {split} table contains non-integral L2 labels"
+            )
+        if bool((l2_numeric < 0).any()):
+            raise ValueError(
+                f"Prebuilt joined {split} table contains negative L2 labels"
+            )
+
+        if "split" in frame.columns:
+            embedded_splits = {
+                str(value).strip().lower() for value in frame["split"].dropna().unique()
+            }
+            if embedded_splits != {split}:
+                raise ValueError(
+                    f"Prebuilt joined {split} table has inconsistent split values: "
+                    f"{sorted(embedded_splits)}"
+                )
+
+        _finite_feature_matrix(frame, current_image_columns, split, "image")
+        _finite_feature_matrix(frame, GEO_FEATURE_COLUMNS, split, "geo")
+        _strict_manifest_dimensions(cfg, split, len(frame), len(current_image_columns))
+
+        file_keys[split] = set(normalized_files.tolist())
+        plot_keys[split] = set(normalized_plots.tolist())
+        target_sets[split] = {int(value) for value in l2_numeric.tolist()}
+        split_result = results[split]
+        assert isinstance(split_result, dict)
+        split_result.update(
+            {
+                "image_feature_dim": int(len(current_image_columns)),
+                "geo_feature_dim": int(len(GEO_FEATURE_COLUMNS)),
+                "l2_labels": sorted(target_sets[split]),
+            }
+        )
+
+    for left_index, left in enumerate(SPLITS):
+        for right in SPLITS[left_index + 1 :]:
+            file_overlap = sorted(file_keys[left].intersection(file_keys[right]))
+            if file_overlap:
+                raise ValueError(
+                    f"Prebuilt joined {left}/{right} filename overlap: {file_overlap[:20]}"
+                )
+            plot_overlap = sorted(plot_keys[left].intersection(plot_keys[right]))
+            if plot_overlap:
+                raise ValueError(
+                    f"Prebuilt joined {left}/{right} plot-ID overlap: {plot_overlap[:20]}"
+                )
+
+    train_targets = target_sets["train"]
+    for split in ("val", "test"):
+        unseen = sorted(target_sets[split].difference(train_targets))
+        if unseen:
+            raise ValueError(
+                f"Prebuilt joined {split} table contains L2 labels absent from train: {unseen}"
+            )
+
+    fingerprints = split_fingerprints(tables)
+    target_spec = resolve_target_spec(cfg)
+    encoding = build_target_encoding(
+        tables,
+        target_spec,
+        training_split_name="prebuilt joined train split",
+    )
+    results["split_fingerprints"] = fingerprints
+    results["target_metadata"] = target_metadata(encoding, fingerprints)
+    return results
+
+
 def prepare_source_artifacts(
     cfg: Mapping,
     force_export: bool = False,
     force_join: bool = False,
-) -> Dict[str, dict]:
+) -> Dict[str, object]:
+    if _prebuilt_joined_tables_only(cfg):
+        _validate_prebuilt_settings(cfg, force_export=force_export, force_join=force_join)
+        table_dir = joined_table_dir(cfg)
+        print(f"\nValidating immutable prebuilt joined tables: {table_dir}")
+        return validate_prebuilt_joined_artifacts(cfg)
+
     image_dir = image_embedding_dir(cfg)
     if force_export or not _split_parquets_exist(image_dir):
         print(f"\nExporting {cfg['multimodal']['image_feature_source']} image embeddings")
@@ -352,6 +595,21 @@ def _best_history_entry(history: Sequence[Mapping]) -> Mapping:
     )
 
 
+def _expected_target_metadata(cfg: Mapping) -> Dict[str, object]:
+    tables = _load_joined_tables(cfg)
+    target_spec = resolve_target_spec(cfg)
+    encoding = build_target_encoding(
+        tables,
+        target_spec,
+        training_split_name="prebuilt joined train split",
+    )
+    return target_metadata(encoding, split_fingerprints(tables))
+
+
+def _json_normalized(value):
+    return json.loads(json.dumps(value, sort_keys=True))
+
+
 def _load_completed_metrics(cfg: Mapping) -> tuple[Path, dict] | None:
     output_dir = run_dir(cfg)
     metrics_path = output_dir / "metrics.json"
@@ -367,6 +625,10 @@ def _load_completed_metrics(cfg: Mapping) -> tuple[Path, dict] | None:
         return None
     if str(metrics["mode"]) != str(cfg["multimodal"]["fusion_mode"]):
         return None
+    configured_target = _target_level(cfg)
+    persisted_target = str(metrics.get("target_level", "l3")).strip().lower()
+    if persisted_target != configured_target:
+        return None
     row_counts = _joined_row_counts(cfg)
     if row_counts is None:
         return None
@@ -375,6 +637,23 @@ def _load_completed_metrics(cfg: Mapping) -> tuple[Path, dict] | None:
             return None
     if not all(metric in metrics["val"] and metric in metrics["test"] for metric in SUMMARY_METRICS):
         return None
+    if configured_target == "l2":
+        expected_metadata = _expected_target_metadata(cfg)
+        required_target_keys = {
+            "target_level",
+            "target_column",
+            "num_classes",
+            "canonical_class_ids",
+            "target_id_remap",
+            "inverse_target_id_remap",
+            "class_names",
+            "split_fingerprints",
+        }
+        if not required_target_keys.issubset(metrics):
+            return None
+        for key in required_target_keys:
+            if _json_normalized(metrics[key]) != _json_normalized(expected_metadata[key]):
+                return None
     return metrics_path, metrics
 
 
@@ -436,6 +715,8 @@ def _default_summary_dir(cfg: Mapping) -> Path:
     if not output.is_absolute():
         output = Path(str(cfg.get("root_path", "./"))) / output
     tag = str(cfg.get("multimodal", {}).get("joined_table_tag", "gse_100m"))
+    if _target_level(cfg) == "l2":
+        return output / "reports" / str(cfg.get("dataset", "cs")) / "target_l2" / tag
     return output / "reports" / str(cfg.get("dataset", "cs")) / tag
 
 
@@ -472,13 +753,29 @@ def main():
     seeds = sorted({int(seed) for seed in args.seeds})
     if not seeds or any(seed < 0 for seed in seeds):
         raise ValueError(f"Seeds must be non-negative integers: {seeds}")
+    prebuilt_only = _prebuilt_joined_tables_only(cfg)
+    _validate_prebuilt_settings(
+        cfg,
+        force_export=bool(args.force_export_image_embeddings),
+        force_join=bool(args.force_build_joined_tables),
+    )
 
     _print_suite(cfg, seeds)
     if args.inspect_only:
         return
 
-    validation = validate_source_data(cfg)
-    print("\n==== 100m Source Data Validation ====")
+    if prebuilt_only:
+        validation = {}
+        source = _configured_suite_sources(cfg)[0]
+        for seed in seeds:
+            source_cfg = _source_cfg(cfg, seed, source)
+            set_seed(seed)
+            validation[f"seed{seed}"] = prepare_source_artifacts(source_cfg)
+        validation_heading = "Immutable Prebuilt Joined-Table Validation"
+    else:
+        validation = validate_source_data(cfg)
+        validation_heading = "100m Source Data Validation"
+    print(f"\n==== {validation_heading} ====")
     print(json.dumps(validation, indent=2))
     if args.validate_data_only:
         return
@@ -489,24 +786,27 @@ def main():
 
     rows = []
     for seed in seeds:
-        source_cfgs = {
-            source: _source_cfg(cfg, seed, source) for source in IMAGE_SOURCES
-        }
-        for source_cfg in source_cfgs.values():
-            set_seed(seed)
-            prepare_source_artifacts(
-                source_cfg,
-                force_export=bool(args.force_export_image_embeddings),
-                force_join=bool(args.force_build_joined_tables),
-            )
+        if prebuilt_only:
+            run_cfgs = suite_run_configs(cfg, [seed])
+        else:
+            source_cfgs = {
+                source: _source_cfg(cfg, seed, source) for source in IMAGE_SOURCES
+            }
+            for source_cfg in source_cfgs.values():
+                set_seed(seed)
+                prepare_source_artifacts(
+                    source_cfg,
+                    force_export=bool(args.force_export_image_embeddings),
+                    force_join=bool(args.force_build_joined_tables),
+                )
 
-        run_cfgs = [
-            _run_cfg(source_cfgs["habitat_finetuned"], "image_only"),
-            _run_cfg(source_cfgs["pretrained"], "image_only"),
-            _run_cfg(source_cfgs["habitat_finetuned"], "geo_only"),
-            _run_cfg(source_cfgs["habitat_finetuned"], "raw_concat"),
-            _run_cfg(source_cfgs["pretrained"], "raw_concat"),
-        ]
+            run_cfgs = [
+                _run_cfg(source_cfgs["habitat_finetuned"], "image_only"),
+                _run_cfg(source_cfgs["pretrained"], "image_only"),
+                _run_cfg(source_cfgs["habitat_finetuned"], "geo_only"),
+                _run_cfg(source_cfgs["habitat_finetuned"], "raw_concat"),
+                _run_cfg(source_cfgs["pretrained"], "raw_concat"),
+            ]
         for run_cfg in run_cfgs:
             set_seed(seed)
             completed = None if args.force_train else _load_completed_metrics(run_cfg)

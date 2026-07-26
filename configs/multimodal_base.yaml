@@ -34,6 +34,7 @@ data:
       rotation: True
 
 multimodal:
+  target_level: 'l3'  # l3 | l2; native classifier target used by the multimodal head
   image_feature_source: 'habitat_finetuned'
   image_checkpoint: './model_ckpt/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_5_20260203_17.pt'
   geo_embeddings_path: './data/cs_geo_gse_10km/CS_Xplots_embeddings_per_file.parquet'
