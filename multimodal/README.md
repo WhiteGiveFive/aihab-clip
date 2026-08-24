@@ -781,6 +781,7 @@ The training code can handle a reduced class set after joining, but if validatio
 
 ## Related Files
 
+- [Reliability-aware geo routing and gated fusion development plan](../dev_plans/reliability_aware_geo_fusion/README.md)
 - `multimodal_main.py`
 - `multimodal/artifacts.py`
 - `multimodal/data.py`
