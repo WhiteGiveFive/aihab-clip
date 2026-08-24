@@ -46,6 +46,24 @@ MODEL_PREFIXES: Dict[str, str] = {
 }
 PREFIXES = ("image", "geo", "fusion")
 PROBABILITY_BASIS = "native_t1_uncalibrated"
+ORACLE_TEST_SELECTION_WARNING = (
+    "Each oracle checkpoint was selected using its highest test top-1 accuracy "
+    "during training. This is test-set leakage and is diagnostic only."
+)
+CHECKPOINT_SELECTIONS: Dict[str, dict[str, str]] = {
+    "final": {
+        "metrics_key": "test",
+        "confusion_name": "test_confusion_matrix.npy",
+        "default_checkpoint_name": "best_model.pt",
+        "description": "final epoch",
+    },
+    "oracle_test_best": {
+        "metrics_key": "oracle_test_best",
+        "confusion_name": "oracle_test_best_confusion_matrix.npy",
+        "default_checkpoint_name": "oracle_test_best_model.pt",
+        "description": "test-selected diagnostic oracle",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -55,7 +73,9 @@ class AgreementConfig:
     seed: int = 1
     joined_table_tag: str = "gse_100m_cleaned_test"
     run_tag: str = "gse_100m_train_cleaned_test_epoch50"
-    checkpoint_name: str = "best_model.pt"
+    checkpoint_name: str | None = None
+    checkpoint_selection: str = "final"
+    analysis_tag: str | None = None
     device: str = "auto"
     batch_size: int = 256
     num_workers: int = 0
@@ -74,6 +94,54 @@ class AgreementConfig:
                 f"cache_policy must be one of {sorted(allowed_policies)}; "
                 f"got {self.cache_policy!r}"
             )
+        if self.checkpoint_selection not in CHECKPOINT_SELECTIONS:
+            raise ValueError(
+                "checkpoint_selection must be one of "
+                f"{sorted(CHECKPOINT_SELECTIONS)}; got {self.checkpoint_selection!r}"
+            )
+        selection = CHECKPOINT_SELECTIONS[self.checkpoint_selection]
+        if (
+            self.checkpoint_name is not None
+            and self.checkpoint_name != selection["default_checkpoint_name"]
+        ):
+            raise ValueError(
+                f"checkpoint_name {self.checkpoint_name!r} is inconsistent with "
+                f"checkpoint_selection {self.checkpoint_selection!r}; expected "
+                f"{selection['default_checkpoint_name']!r}"
+            )
+        resolved_analysis_tag = self.analysis_tag
+        if resolved_analysis_tag is None:
+            resolved_analysis_tag = self.run_tag
+            if self.checkpoint_selection != "final":
+                resolved_analysis_tag = (
+                    f"{self.run_tag}__{self.checkpoint_selection}"
+                )
+        if (
+            not resolved_analysis_tag
+            or resolved_analysis_tag in {".", ".."}
+            or _safe_tag(resolved_analysis_tag) != resolved_analysis_tag
+        ):
+            raise ValueError(
+                "resolved analysis tag must be a non-empty, path-safe name that "
+                "does not require normalization"
+            )
+        oracle_suffix = "__oracle_test_best"
+        if (
+            self.checkpoint_selection == "oracle_test_best"
+            and not resolved_analysis_tag.endswith(oracle_suffix)
+        ):
+            raise ValueError(
+                "oracle_test_best analysis tag must end with "
+                f"{oracle_suffix!r} to keep diagnostic outputs isolated"
+            )
+        if (
+            self.checkpoint_selection == "final"
+            and resolved_analysis_tag.endswith(oracle_suffix)
+        ):
+            raise ValueError(
+                "final analysis tag must not use the reserved "
+                f"{oracle_suffix!r} suffix"
+            )
         missing = set(MODEL_PREFIXES).difference(self.modes)
         extra = set(self.modes).difference(MODEL_PREFIXES)
         if missing or extra or len(self.modes) != 3:
@@ -85,6 +153,27 @@ class AgreementConfig:
             raise ValueError("batch_size must be positive")
         if self.bootstrap_replicates <= 0:
             raise ValueError("bootstrap_replicates must be positive")
+
+    @property
+    def resolved_checkpoint_name(self) -> str:
+        """Checkpoint filename implied by the selected result."""
+
+        return (
+            self.checkpoint_name
+            or CHECKPOINT_SELECTIONS[self.checkpoint_selection][
+                "default_checkpoint_name"
+            ]
+        )
+
+    @property
+    def resolved_analysis_tag(self) -> str:
+        """Collision-resistant output tag for this checkpoint selection."""
+
+        if self.analysis_tag is not None:
+            return self.analysis_tag
+        if self.checkpoint_selection == "final":
+            return self.run_tag
+        return f"{self.run_tag}__{self.checkpoint_selection}"
 
 
 def _safe_tag(value: object) -> str:
@@ -111,13 +200,14 @@ def analysis_paths(cfg: Mapping, spec: AgreementConfig) -> Dict[str, Path]:
 
     dataset = _safe_tag(cfg.get("dataset", "cs"))
     output_root = _resolved_output_root(cfg, spec.output_root)
+    analysis_tag = spec.resolved_analysis_tag
     analysis_dir = (
         output_root
         / "analysis"
         / dataset
         / _safe_tag(spec.joined_table_tag)
         / "baseline_agreement"
-        / _safe_tag(spec.run_tag)
+        / _safe_tag(analysis_tag)
         / f"seed{int(spec.seed)}"
     )
     if spec.report_root is None:
@@ -129,7 +219,7 @@ def analysis_paths(cfg: Mapping, spec: AgreementConfig) -> Dict[str, Path]:
         / dataset
         / _safe_tag(spec.joined_table_tag)
         / "baseline_agreement"
-        / _safe_tag(spec.run_tag)
+        / _safe_tag(analysis_tag)
         / f"seed{int(spec.seed)}"
     )
     return {
@@ -218,8 +308,12 @@ def _canonical_label_remap(value: Mapping) -> dict[str, int]:
     return {str(int(key)): int(mapped) for key, mapped in value.items()}
 
 
+def _checkpoint_selection(spec: AgreementConfig) -> dict[str, str]:
+    return CHECKPOINT_SELECTIONS[spec.checkpoint_selection]
+
+
 def validate_artifacts(cfg: Mapping, spec: AgreementConfig) -> dict[str, object]:
-    """Validate joined tables and all three final-checkpoint artifacts.
+    """Validate joined tables and all three selected-checkpoint artifacts.
 
     This function intentionally touches checkpoint files.  ``cache_only`` uses
     :func:`validate_model_outputs` instead and never calls this function.
@@ -232,6 +326,8 @@ def validate_artifacts(cfg: Mapping, spec: AgreementConfig) -> dict[str, object]
     if missing_joined:
         raise FileNotFoundError(f"Missing joined tables: {missing_joined}")
 
+    selection = _checkpoint_selection(spec)
+    metrics_key = selection["metrics_key"]
     model_records: dict[str, dict[str, object]] = {}
     expected_names: list[str] | None = None
     expected_remap: dict[str, int] | None = None
@@ -241,11 +337,16 @@ def validate_artifacts(cfg: Mapping, spec: AgreementConfig) -> dict[str, object]
         directory = run_dir(mode_cfg)
         scaler_name = "geo_standardization.json" if tabular_modality_name(mode_cfg) == "geo" else "tabular_standardization.json"
         paths = {
-            "checkpoint": directory / spec.checkpoint_name,
+            "checkpoint": directory / spec.resolved_checkpoint_name,
             "scaler": directory / scaler_name,
             "metrics": directory / "metrics.json",
         }
-        missing = [str(path) for path in paths.values() if not path.exists()]
+        confusion_path = directory / selection["confusion_name"]
+        missing = [
+            str(path)
+            for path in (*paths.values(), confusion_path)
+            if not path.exists()
+        ]
         if missing:
             raise FileNotFoundError(f"Missing {mode} artifacts: {missing}")
         scaler = _read_json(paths["scaler"])
@@ -253,11 +354,19 @@ def validate_artifacts(cfg: Mapping, spec: AgreementConfig) -> dict[str, object]
         checkpoint_header = _load_checkpoint(paths["checkpoint"], torch.device("cpu"))
         checkpoint_epoch = checkpoint_header.get("epoch")
         checkpoint_regime = checkpoint_header.get("training_regime")
-        expected_epoch = (
-            int(metrics["history"][-1]["epoch"])
-            if metrics.get("history")
-            else None
-        )
+        if metrics_key not in metrics:
+            raise ValueError(
+                f"{mode} metrics.json lacks selected result {metrics_key!r}"
+            )
+        selected_metrics = metrics[metrics_key]
+        if spec.checkpoint_selection == "final":
+            expected_epoch = (
+                int(metrics["history"][-1]["epoch"])
+                if metrics.get("history")
+                else None
+            )
+        else:
+            expected_epoch = selected_metrics.get("epoch")
         if checkpoint_regime != "fixed_epoch_train_val" or metrics.get("training_regime") != "fixed_epoch_train_val":
             raise ValueError(
                 f"{mode} is not a fixed-epoch final-fit checkpoint: "
@@ -265,8 +374,28 @@ def validate_artifacts(cfg: Mapping, spec: AgreementConfig) -> dict[str, object]
             )
         if checkpoint_epoch is None or expected_epoch is None or int(checkpoint_epoch) != expected_epoch:
             raise ValueError(
-                f"{mode} checkpoint is not the saved final epoch: "
-                f"checkpoint epoch={checkpoint_epoch!r}, final metrics epoch={expected_epoch!r}"
+                f"{mode} checkpoint does not match the selected "
+                f"{spec.checkpoint_selection!r} result: checkpoint "
+                f"epoch={checkpoint_epoch!r}, selected metrics epoch={expected_epoch!r}"
+            )
+        if spec.checkpoint_selection == "oracle_test_best":
+            for field, expected in (
+                ("selection_split", "test"),
+                ("selection_metric", "top1_acc"),
+                ("diagnostic_only", True),
+            ):
+                if checkpoint_header.get(field) != expected or selected_metrics.get(field) != expected:
+                    raise ValueError(
+                        f"{mode} oracle metadata mismatch for {field!r}: "
+                        f"checkpoint={checkpoint_header.get(field)!r}, "
+                        f"metrics={selected_metrics.get(field)!r}, expected={expected!r}"
+                    )
+        saved_confusion = np.asarray(selected_metrics.get("cm"), dtype=np.int64)
+        file_confusion = np.load(confusion_path)
+        if not np.array_equal(saved_confusion, file_confusion):
+            raise ValueError(
+                f"{mode} selected confusion matrix differs between metrics.json "
+                f"and {confusion_path.name}"
             )
         if not bool(metrics.get("train_on_train_val", False)) or bool(metrics.get("early_stopping", True)):
             raise ValueError(f"{mode} metrics do not describe fixed-epoch train+val fitting")
@@ -300,6 +429,8 @@ def validate_artifacts(cfg: Mapping, spec: AgreementConfig) -> dict[str, object]
                 "epoch": int(checkpoint_epoch),
                 "training_regime": str(checkpoint_regime),
                 "mode": str(checkpoint_header.get("mode", mode)),
+                "checkpoint_selection": spec.checkpoint_selection,
+                "metrics_key": metrics_key,
             },
             "fingerprints": {key: _fingerprint(path) for key, path in paths.items()},
         }
@@ -466,6 +597,8 @@ def run_ordered_test_inference(
         "classes": len(class_names),
     }
     checkpoint_metadata: dict[str, object] = {}
+    selected_metrics_key = _checkpoint_selection(spec)["metrics_key"]
+    diagnostic_only = spec.checkpoint_selection == "oracle_test_best"
 
     for mode in spec.modes:
         prefix = MODEL_PREFIXES[mode]
@@ -506,16 +639,29 @@ def run_ordered_test_inference(
             axis=1,
         )
         recomputed = _metric_from_predictions(labels, logits_np, len(class_names))
-        reproduction[mode] = _reproduction_check(record["metrics"]["test"], recomputed)
+        reproduction[mode] = _reproduction_check(
+            record["metrics"][selected_metrics_key], recomputed
+        )
         if not reproduction[mode]["confusion_matrix_exact"]:
-            raise ValueError(f"{mode} recomputed confusion matrix differs from metrics.json")
+            raise ValueError(
+                f"{mode} recomputed confusion matrix differs from the saved "
+                f"{selected_metrics_key!r} result"
+            )
         if max(reproduction[mode]["absolute_delta"].values()) > 1e-6:
-            raise ValueError(f"{mode} recomputed final metrics differ from metrics.json")
+            raise ValueError(
+                f"{mode} recomputed metrics differ from the saved "
+                f"{selected_metrics_key!r} result"
+            )
         checkpoint_metadata[mode] = {
             "epoch": checkpoint.get("epoch"),
             "training_regime": checkpoint.get("training_regime", record["metrics"].get("training_regime")),
             "mode": checkpoint.get("mode", mode),
-            "checkpoint_name": spec.checkpoint_name,
+            "checkpoint_name": spec.resolved_checkpoint_name,
+            "checkpoint_selection": spec.checkpoint_selection,
+            "metrics_key": selected_metrics_key,
+            "selection_split": checkpoint.get("selection_split"),
+            "selection_metric": checkpoint.get("selection_metric"),
+            "diagnostic_only": bool(checkpoint.get("diagnostic_only", False)),
         }
         del model, checkpoint
 
@@ -531,7 +677,15 @@ def run_ordered_test_inference(
         "seed": int(spec.seed),
         "joined_table_tag": spec.joined_table_tag,
         "run_tag": spec.run_tag,
-        "checkpoint_name": spec.checkpoint_name,
+        "analysis_tag": spec.resolved_analysis_tag,
+        "checkpoint_name": spec.resolved_checkpoint_name,
+        "checkpoint_selection": spec.checkpoint_selection,
+        "diagnostic_only": diagnostic_only,
+        "selection_split": "test" if diagnostic_only else None,
+        "selection_metric": "top1_acc" if diagnostic_only else None,
+        "selection_warning": (
+            ORACLE_TEST_SELECTION_WARNING if diagnostic_only else None
+        ),
         "modes": list(spec.modes),
         "model_prefixes": MODEL_PREFIXES,
         "rows": int(len(output)),
@@ -659,7 +813,7 @@ def _manifest_matches_spec(
         "seed": int(spec.seed),
         "joined_table_tag": spec.joined_table_tag,
         "run_tag": spec.run_tag,
-        "checkpoint_name": spec.checkpoint_name,
+        "checkpoint_name": spec.resolved_checkpoint_name,
         "modes": list(spec.modes),
         "temperature": 1.0,
         "calibrated": False,
@@ -667,6 +821,21 @@ def _manifest_matches_spec(
     for key, value in expected.items():
         if cached.get(key) != value:
             return False, f"manifest field {key!r} differs: {cached.get(key)!r} != {value!r}"
+    cached_selection = cached.get("checkpoint_selection", "final")
+    if cached_selection != spec.checkpoint_selection:
+        return (
+            False,
+            "manifest field 'checkpoint_selection' differs: "
+            f"{cached_selection!r} != {spec.checkpoint_selection!r}",
+        )
+    cached_analysis_tag = cached.get("analysis_tag", cached.get("run_tag"))
+    requested_analysis_tag = spec.resolved_analysis_tag
+    if cached_analysis_tag != requested_analysis_tag:
+        return (
+            False,
+            "manifest field 'analysis_tag' differs: "
+            f"{cached_analysis_tag!r} != {requested_analysis_tag!r}",
+        )
     return True, "matching requested specification"
 
 
@@ -1807,8 +1976,23 @@ def _load_plotting() -> Any:
     return plt
 
 
-def _save_figure(fig: Any, path: Path) -> None:
+def _save_figure(
+    fig: Any,
+    path: Path,
+    diagnostic_label: str | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if diagnostic_label:
+        fig.text(
+            0.5,
+            1.0,
+            diagnostic_label,
+            ha="center",
+            va="bottom",
+            color="#b71c1c",
+            fontsize=10,
+            fontweight="bold",
+        )
     fig.savefig(path, dpi=180, bbox_inches="tight")
     plt = _load_plotting()
     plt.close(fig)
@@ -1818,6 +2002,7 @@ def _plot_prediction_contingency(
     table: pd.DataFrame,
     class_names: Sequence[str],
     path: Path,
+    diagnostic_label: str | None = None,
 ) -> None:
     plt = _load_plotting()
     matrix = table.pivot(index="image_pred", columns="geo_pred", values="count").to_numpy()
@@ -1829,10 +2014,14 @@ def _plot_prediction_contingency(
     ax.set_xticks(range(len(class_names)), class_names, rotation=90, fontsize=7)
     ax.set_yticks(range(len(class_names)), class_names, fontsize=7)
     fig.colorbar(image, ax=ax, label="Images")
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
-def _plot_correctness_states(table: pd.DataFrame, path: Path) -> None:
+def _plot_correctness_states(
+    table: pd.DataFrame,
+    path: Path,
+    diagnostic_label: str | None = None,
+) -> None:
     plt = _load_plotting()
     fig, ax = plt.subplots(figsize=(8, 4.5))
     bars = ax.bar(table["state"], table["rate"] * 100, color=["#2e7d32", "#1565c0", "#ef6c00", "#c62828"])
@@ -1841,10 +2030,14 @@ def _plot_correctness_states(table: pd.DataFrame, path: Path) -> None:
     ax.set_title("Image/geo correctness complementarity")
     ax.tick_params(axis="x", rotation=20)
     ax.set_ylim(0, max(5, float(table["rate"].max() * 115)))
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
-def _plot_fusion_capture_heatmap(table: pd.DataFrame, path: Path) -> None:
+def _plot_fusion_capture_heatmap(
+    table: pd.DataFrame,
+    path: Path,
+    diagnostic_label: str | None = None,
+) -> None:
     plt = _load_plotting()
     metrics = [
         "fusion_consensus_preservation",
@@ -1860,13 +2053,14 @@ def _plot_fusion_capture_heatmap(table: pd.DataFrame, path: Path) -> None:
     ax.set_yticks(range(len(table)), table["label_name"], fontsize=8)
     ax.set_title("Fusion outcome rates by ground-truth habitat")
     fig.colorbar(image, ax=ax, label="Conditional rate")
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
 def _plot_f1_delta(
     image_flow: pd.DataFrame,
     geo_flow: pd.DataFrame,
     path: Path,
+    diagnostic_label: str | None = None,
 ) -> None:
     plt = _load_plotting()
     positions = np.arange(len(image_flow))
@@ -1879,10 +2073,15 @@ def _plot_f1_delta(
     ax.set_xlabel("Per-habitat F1 difference (percentage points)")
     ax.set_title("Fusion F1 change relative to each single modality")
     ax.legend()
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
-def _plot_tp_fp_flow(image_flow: pd.DataFrame, geo_flow: pd.DataFrame, path: Path) -> None:
+def _plot_tp_fp_flow(
+    image_flow: pd.DataFrame,
+    geo_flow: pd.DataFrame,
+    path: Path,
+    diagnostic_label: str | None = None,
+) -> None:
     plt = _load_plotting()
     positions = np.arange(len(image_flow))
     fig, axes = plt.subplots(1, 2, figsize=(15, 7), sharey=True)
@@ -1899,10 +2098,14 @@ def _plot_tp_fp_flow(image_flow: pd.DataFrame, geo_flow: pd.DataFrame, path: Pat
     fig.legend(handles, labels, loc="lower center", ncol=4)
     fig.suptitle("Fusion true-positive and false-positive flow")
     fig.subplots_adjust(bottom=0.12)
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
-def _plot_jsd_distributions(frame: pd.DataFrame, path: Path) -> None:
+def _plot_jsd_distributions(
+    frame: pd.DataFrame,
+    path: Path,
+    diagnostic_label: str | None = None,
+) -> None:
     plt = _load_plotting()
     states = ["both_correct", "image_only_correct", "geo_only_correct", "neither_correct"]
     fig, ax = plt.subplots(figsize=(9, 5))
@@ -1917,20 +2120,28 @@ def _plot_jsd_distributions(frame: pd.DataFrame, path: Path) -> None:
     ax.set_ylabel("Density")
     ax.set_title("Soft disagreement by correctness state")
     ax.legend(fontsize=8)
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
-def _plot_nll_comparison(frame: pd.DataFrame, path: Path) -> None:
+def _plot_nll_comparison(
+    frame: pd.DataFrame,
+    path: Path,
+    diagnostic_label: str | None = None,
+) -> None:
     plt = _load_plotting()
     values = [frame[f"{prefix}_nll_t1"].to_numpy(dtype=float) for prefix in PREFIXES]
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.boxplot(values, labels=["Image", "Geo", "Fusion"], showfliers=False)
     ax.set_ylabel("True-class NLL (native T=1, uncalibrated)")
     ax.set_title("Per-instance true-class negative log likelihood")
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
-def _plot_bootstrap_intervals(table: pd.DataFrame, path: Path) -> None:
+def _plot_bootstrap_intervals(
+    table: pd.DataFrame,
+    path: Path,
+    diagnostic_label: str | None = None,
+) -> None:
     plt = _load_plotting()
     desired = [
         "image_accuracy",
@@ -1955,7 +2166,7 @@ def _plot_bootstrap_intervals(table: pd.DataFrame, path: Path) -> None:
     ax.set_yticks(y, subset["metric"].str.replace("_", " "))
     ax.set_xlabel("Estimate and 95% plot-cluster bootstrap interval (percentage points)")
     ax.set_title("Single-seed current-test uncertainty")
-    _save_figure(fig, path)
+    _save_figure(fig, path, diagnostic_label)
 
 
 def create_priority_image_montage(
@@ -2028,6 +2239,11 @@ def _summary_markdown(
     bootstrap: pd.DataFrame,
     manifest: Mapping[str, object],
 ) -> str:
+    checkpoint_selection = str(manifest.get("checkpoint_selection", "final"))
+    selection = CHECKPOINT_SELECTIONS.get(
+        checkpoint_selection, CHECKPOINT_SELECTIONS["final"]
+    )
+    checkpoint_scope = selection["description"]
     overall = tables["overall"].set_index("metric")
     correctness = tables["correctness_state"].copy()
     fusion_capture = tables["fusion_capture"].copy()
@@ -2083,9 +2299,20 @@ def _summary_markdown(
         (
             f"This report analyses {int(manifest['rows']):,} cleaned test images from "
             f"{int(manifest.get('plots') or 0):,} plots for seed {manifest['seed']}. "
-            "It compares final-checkpoint image-only, geo-only, and raw-concatenation classifiers."
+            f"It compares {checkpoint_scope} image-only, geo-only, and "
+            "raw-concatenation classifiers."
         ),
         "",
+        *(
+            [
+                "> **Diagnostic test-selection warning:** "
+                f"{ORACLE_TEST_SELECTION_WARNING} Treat this only as a sensitivity "
+                "analysis, not as primary performance evidence.",
+                "",
+            ]
+            if checkpoint_selection == "oracle_test_best"
+            else []
+        ),
         "> All probability-derived diagnostics use the native T=1 softmax and are uncalibrated. They are descriptive, not calibrated-confidence claims.",
         "",
         "## Overall hard agreement and complementarity",
@@ -2143,7 +2370,13 @@ def _summary_markdown(
         "",
         "## Reproduction checks",
         "",
-        "The ordered inference cache was required to reproduce every saved final confusion matrix exactly and saved top-1, top-3, weighted F1, and MCC within 1e-6 before this report was generated. Saved evaluator loss is intentionally not compared because it averages batch means, whereas cached per-instance NLL is sample weighted.",
+        (
+            "The ordered inference cache was required to reproduce every saved "
+            f"{checkpoint_scope} confusion matrix exactly and saved top-1, top-3, "
+            "weighted F1, and MCC within 1e-6 before this report was generated. "
+            "Saved evaluator loss is intentionally not compared because it averages "
+            "batch means, whereas cached per-instance NLL is sample weighted."
+        ),
         "",
     ]
     return "\n".join(lines)
@@ -2165,6 +2398,12 @@ def export_analysis_report(
             "dataset": manifest.get("dataset", "cs"),
             "multimodal": {"output_dir": spec.output_root or "./multimodal_artifacts"},
         }
+    matches, reason = _manifest_matches_spec(manifest, spec)
+    if not matches:
+        raise ValueError(
+            "Refusing to export an analysis whose manifest does not match the "
+            f"requested destination specification ({reason})."
+        )
     paths = analysis_paths(cfg, spec)
     paths["analysis_dir"].mkdir(parents=True, exist_ok=True)
     paths["report_dir"].mkdir(parents=True, exist_ok=True)
@@ -2177,19 +2416,39 @@ def export_analysis_report(
         "summary_markdown": paths["summary_md"],
         "summary_json": paths["summary_json"],
     }
+    checkpoint_selection = str(manifest.get("checkpoint_selection", "final"))
+    diagnostic_only = bool(
+        manifest.get(
+            "diagnostic_only",
+            checkpoint_selection == "oracle_test_best",
+        )
+    )
+    export_provenance = {
+        "checkpoint_selection": checkpoint_selection,
+        "diagnostic_only": diagnostic_only,
+        "selection_split": manifest.get("selection_split"),
+        "selection_metric": manifest.get("selection_metric"),
+    }
+
+    def with_provenance(table: pd.DataFrame) -> pd.DataFrame:
+        exported = table.copy()
+        for column, value in reversed(tuple(export_provenance.items())):
+            exported.insert(0, column, value)
+        return exported
+
     for name, table in tables.items():
         destination = paths["report_dir"] / f"{name}.csv"
-        _atomic_csv(table, destination)
+        _atomic_csv(with_provenance(table), destination)
         exports[name] = destination
     combined_flow = pd.concat(
         [tables["f1_flow_vs_image"], tables["f1_flow_vs_geo"]],
         ignore_index=True,
     )
     combined_flow_path = paths["report_dir"] / "f1_flow.csv"
-    _atomic_csv(combined_flow, combined_flow_path)
+    _atomic_csv(with_provenance(combined_flow), combined_flow_path)
     exports["f1_flow"] = combined_flow_path
     bootstrap_path = paths["report_dir"] / "bootstrap.csv"
-    _atomic_csv(bootstrap, bootstrap_path)
+    _atomic_csv(with_provenance(bootstrap), bootstrap_path)
     exports["bootstrap"] = bootstrap_path
 
     class_names = [str(value) for value in manifest["class_names"]]
@@ -2203,14 +2462,54 @@ def export_analysis_report(
         "true_class_nll_native_t1": paths["figures_dir"] / "true_class_nll_native_t1.png",
         "bootstrap_intervals": paths["figures_dir"] / "bootstrap_intervals.png",
     }
-    _plot_prediction_contingency(tables["prediction_pair"], class_names, figures["prediction_contingency"])
-    _plot_correctness_states(tables["correctness_state"], figures["correctness_states"])
-    _plot_fusion_capture_heatmap(tables["per_habitat"], figures["fusion_capture_by_habitat"])
-    _plot_f1_delta(tables["f1_flow_vs_image"], tables["f1_flow_vs_geo"], figures["f1_delta_by_habitat"])
-    _plot_tp_fp_flow(tables["f1_flow_vs_image"], tables["f1_flow_vs_geo"], figures["tp_fp_flow"])
-    _plot_jsd_distributions(per_instance, figures["jsd_distributions_native_t1"])
-    _plot_nll_comparison(per_instance, figures["true_class_nll_native_t1"])
-    _plot_bootstrap_intervals(bootstrap, figures["bootstrap_intervals"])
+    diagnostic_label = (
+        "TEST-SELECTED ORACLE — DIAGNOSTIC ONLY"
+        if diagnostic_only
+        else None
+    )
+    _plot_prediction_contingency(
+        tables["prediction_pair"],
+        class_names,
+        figures["prediction_contingency"],
+        diagnostic_label,
+    )
+    _plot_correctness_states(
+        tables["correctness_state"],
+        figures["correctness_states"],
+        diagnostic_label,
+    )
+    _plot_fusion_capture_heatmap(
+        tables["per_habitat"],
+        figures["fusion_capture_by_habitat"],
+        diagnostic_label,
+    )
+    _plot_f1_delta(
+        tables["f1_flow_vs_image"],
+        tables["f1_flow_vs_geo"],
+        figures["f1_delta_by_habitat"],
+        diagnostic_label,
+    )
+    _plot_tp_fp_flow(
+        tables["f1_flow_vs_image"],
+        tables["f1_flow_vs_geo"],
+        figures["tp_fp_flow"],
+        diagnostic_label,
+    )
+    _plot_jsd_distributions(
+        per_instance,
+        figures["jsd_distributions_native_t1"],
+        diagnostic_label,
+    )
+    _plot_nll_comparison(
+        per_instance,
+        figures["true_class_nll_native_t1"],
+        diagnostic_label,
+    )
+    _plot_bootstrap_intervals(
+        bootstrap,
+        figures["bootstrap_intervals"],
+        diagnostic_label,
+    )
     exports.update({f"figure_{name}": path for name, path in figures.items()})
 
     markdown = _summary_markdown(tables, bootstrap, manifest)
@@ -2222,6 +2521,13 @@ def export_analysis_report(
             "seed": manifest.get("seed"),
             "joined_table_tag": manifest.get("joined_table_tag"),
             "run_tag": manifest.get("run_tag"),
+            "analysis_tag": manifest.get("analysis_tag", manifest.get("run_tag")),
+            "checkpoint_name": manifest.get("checkpoint_name"),
+            "checkpoint_selection": manifest.get("checkpoint_selection", "final"),
+            "diagnostic_only": diagnostic_only,
+            "selection_split": manifest.get("selection_split"),
+            "selection_metric": manifest.get("selection_metric"),
+            "selection_warning": manifest.get("selection_warning"),
             "rows": manifest.get("rows"),
             "plots": manifest.get("plots"),
             "temperature": 1.0,
@@ -2237,6 +2543,9 @@ def export_analysis_report(
         "uncertainty_statement": (
             "Paired habitat-stratified plot-cluster percentile intervals quantify "
             "current-test plot uncertainty, not training-seed variability."
+        ),
+        "diagnostic_warning": (
+            ORACLE_TEST_SELECTION_WARNING if diagnostic_only else None
         ),
         "files": {key: str(value) for key, value in exports.items()},
     }
