@@ -23,8 +23,8 @@ made, or a step-specific implementation record is created.
 | Primary baseline anchor | `raw_concat` |
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
-| Current method status | Simplified router-development protocol selected; M1 freeze in progress; learning pipeline not started |
-| Last updated | 2026-08-24 |
+| Current method status | M1 protocol_v1 complete and frozen; M2 OOF expert generation is next; learning pipeline not started |
+| Last updated | 2026-08-25 |
 
 ## Contents
 
@@ -357,7 +357,7 @@ Acceptance evidence:
 
 ### M1 — Freeze the experimental protocol
 
-**Status:** In progress
+**Status:** Complete
 
 Tasks:
 
@@ -365,8 +365,8 @@ Tasks:
    exploratory rather than independent.
 2. Materialize one deterministic, habitat-aware, `plot_idx`-grouped split of
    the 4,200-image development universe into **development-train** and
-   **development-validation**. The initial target is approximately 80/20 by
-   plot; exact membership is frozen in the protocol artifacts.
+   **development-validation**. The frozen allocation is 1,300/325 plots;
+   image counts are 3,378/822 because plots are indivisible.
 3. Within development-train, define four grouped cross-fitting folds shared by
    `image_only`, `geo_only`, and `raw_concat`. These folds generate honest
    expert outputs for router targets and features.
@@ -374,13 +374,16 @@ Tasks:
    calibration, feature transforms, and a router fitted without validation
    plots. Validation labels may select declared router hyperparameters and the
    hard-override threshold, but may not enter router features.
-5. Freeze the final-refit recipe and its component allow-lists. After validation
-   selects the router hyperparameters and threshold, all router-side state is
-   immutable. Refit only the fold-trained image-encoder weights when adaptation
-   is selected, the three expert heads, and raw-input preprocessing such as geo
-   standardization once on all development plots. A selected externally
-   pretrained encoder stays fixed. In-sample predictions from those final
-   experts may not enter any router-side fit or update.
+5. Freeze the final-refit recipe and its component allow-lists. Protocol v1
+   selects fold-contained, vision-only SigLIP2 adaptation: every producer starts
+   from the same pinned pretrained checkpoint, unlocks the final 11 vision
+   groups, freezes the text tower, and uses the fixed 18-class prompt objective
+   for five epochs. It deliberately retains the legacy OpenCV BGR/439 input
+   path. After validation selects router hyperparameters and the threshold, all
+   router-side state is immutable. Refit only the adapted image encoder, three
+   expert heads, and geo standardization on all development plots. In-sample
+   predictions from those final experts may not enter a router-side fit or
+   update.
 6. Freeze the split ratio and assignment algorithm, four-fold seed, training
    seeds, fixed 18-class mapping, baseline anchor, primary metrics, threshold
    objective, and development go/no-go criteria.
@@ -397,6 +400,8 @@ Deliverables:
 - `development_assignments.parquet` with development role and train-OOF fold;
 - split-balance report, label-blind locked-test identity manifest, resolved
   protocol, and protocol manifest;
+- raw-development-image content fingerprint and pinned encoder/tokenizer
+  provenance;
 - completed `01_experimental_protocol.md`;
 - leakage tests that fail if plots cross fold boundaries or test rows enter a
   tuning table.
@@ -763,6 +768,7 @@ notebook-only logic.
 | Path | Proposed responsibility |
 |---|---|
 | `multimodal/geo_helpfulness_protocol.py` | Development identities, class map, grouped assignments, manifests, fingerprints, and boundary validators |
+| `multimodal/geo_helpfulness_locked_eval.py` | Capability-limited locked prediction/scoring boundary exercised on synthetic fixtures in M1 |
 | `multimodal/geo_helpfulness.py` | Targets, feature schema, utility score, policies, metrics |
 | `multimodal/router.py` | Router models, fitting, calibration, serialization |
 | `multimodal/models.py` | Gated geo-residual architecture |
@@ -827,10 +833,10 @@ Additional rules:
   schema, numeric feature scalers/imputers/density estimators, categorical
   vocabularies and mappings, router coefficients/checkpoints, any declared
   router-output calibrator, policy, and threshold specification;
-- `expert_refit_state` comprises only fold-trained image-encoder weights when
-  encoder adaptation is selected, the three expert heads, and explicitly named
-  raw-input preprocessing such as geo mean and standard deviation; an
-  externally pretrained fixed encoder is an immutable input;
+- `expert_refit_state` comprises the fold-contained adapted image-encoder
+  weights, the three expert heads, and explicitly named raw-input preprocessing
+  such as geo mean and standard deviation; the pinned externally pretrained
+  encoder is the immutable initialization for every producer fit;
 - all images from the same `plot_idx` remain together;
 - development-validation plots are excluded from every expert, temperature,
   feature transform, and router fit used to produce selection predictions;
@@ -932,7 +938,7 @@ Report overall and per habitat:
 | Extra model capacity | Unfair advantage over raw concat | Matched-parameter/budget controls and residual ablations |
 | Single validation split | Selection result is high-variance and optimistic for the chosen policy | Freeze one plot-grouped split, keep the model grid small, report multi-seed stability, and seek independent confirmation |
 | Final expert-refit shift | Router was trained on OOF experts fitted with less data than the final experts | Freeze all `router_frozen_state`, monitor score distributions without test adaptation, and disclose the shift |
-| Fold-contained encoder cost | Slow iteration and large artifacts | Six encoder-producing stages per seed when adaptation is enabled, 18 mode-head fits, cached immutable logits, and content fingerprints |
+| Fold-contained encoder cost | Slow iteration and large artifacts | Six encoder fits and 18 mode-head fits per seed, cached immutable logits, and content fingerprints |
 | Independent dataset unavailable | Weak generalization claim | Use multi-seed grouped evidence and explicitly limit conclusions |
 
 ## Progress ledger
@@ -940,8 +946,8 @@ Report overall and per habitat:
 | Milestone | Status | Evidence or blocker | Next action |
 |---|---|---|---|
 | M0 Baselines and diagnostic evidence | Complete | Agreement cache, notebook, report, and reproduction checks | Preserve as immutable motivation |
-| M1 Experimental protocol | In progress | Simplified single-holdout router protocol selected; exact artifacts not frozen | Freeze grouped split, four train-OOF folds, and artifact contract |
-| M2 OOF expert outputs | Planned | No OOF development cache exists | Build four train-OOF fits and one train-to-validation fit after M1 |
+| M1 Experimental protocol | Complete | Label-blind test identity, 4,200-row assignments, split balance, resolved config, protocol manifest, capability boundaries, and 43 focused tests validate | Preserve protocol_v1 immutably |
+| M2 OOF expert outputs | Planned | M1 now authorizes OOF generation; no real OOF cache exists | Implement and run four OOF producers plus train-to-validation for seeds 1–4 |
 | M3 Targets and router features | Planned | Test diagnostics exist, but no training dataset | Implement only from validated OOF outputs |
 | M4 Router feasibility | Planned | No router has been trained | Begin with output-only logistic router |
 | M5 Test-time correction | Planned | No frozen score/threshold policy exists | Proceed only after the router passes the internal development gate |
@@ -957,7 +963,7 @@ results, unresolved issues, and completion evidence for that step.
 
 | Planned record | Milestone | Status |
 |---|---|---|
-| [`01_experimental_protocol.md`](01_experimental_protocol.md) | M1 | Planning draft |
+| [`01_experimental_protocol.md`](01_experimental_protocol.md) | M1 | Complete |
 | `02_oof_expert_outputs.md` | M2 | Not created |
 | `03_targets_and_features.md` | M3 | Not created |
 | `04_router_feasibility.md` | M4 | Not created |
@@ -986,24 +992,19 @@ corresponding record exists.
 | D012 | 2026-08-24 | Confirmed | Select one common `C` and threshold specification across seeds 1–4 while retaining one seed-specific temperature/router checkpoint per seed | Avoids best-seed selection and gives all seed realizations the same policy rule |
 | D013 | 2026-08-24 | Confirmed | Seal label-blind router-candidate validation predictions before a separate fit-incapable validation scorer opens labels | Prevents validation-label access from sharing a process capability with router fitting |
 | D014 | 2026-08-24 | Confirmed | Seal one protocol-independent cleaned-test identity snapshot and record every frozen-bundle score in a global append-only event registry | Prevents protocol IDs from silently changing the test universe or hiding adaptive test reuse |
+| D015 | 2026-08-25 | Confirmed | Use fold-contained, vision-only SigLIP2 adaptation for protocol v1 | Each of four OOF producers, the train-to-validation producer, and the final full-development producer starts from the same pinned pretrained checkpoint; this is six encoder fits and 18 expert-head fits per seed |
+| D016 | 2026-08-25 | Confirmed | Freeze the text tower, unlock the last 11 vision groups, and use the fixed 18-class prompt objective for five epochs | Retains the intended habitat adaptation while keeping the recipe bounded and reproducible |
+| D017 | 2026-08-25 | Confirmed | Retain the legacy OpenCV BGR decode and forced 439×439 pre-resize in protocol v1 | Preserves historical preprocessing compatibility; correcting channel order or aspect handling requires a new protocol version |
+| D018 | 2026-08-25 | Confirmed | Derive dense and canonical development labels by exact label-name lookup in the frozen ontology | Removes dependence on legacy dense-label mappings that could have test-informed provenance |
 
 ## Immediate next action
 
-Complete M1 by creating `01_experimental_protocol.md` and freezing:
-
-1. the development-table identity and fingerprints;
-2. the deterministic grouped development split, rare-class allocation rule,
-   four development-train OOF folds, and all seeds;
-3. the four-state target contract;
-4. the first output-level feature allow-list;
-5. train-OOF-contained transform and calibration rules, validation-only model
-   and threshold selection, and the frozen-router final-refit boundary;
-6. development-only training and one-shot locked-test entry points;
-7. the exact selection-aware go/no-go criterion for starting gated-fusion
-   development;
-8. the six-encoder-stage-per-seed execution and artifact contract.
-
-No router or gate should be trained before those choices are recorded.
+Begin M2 from the immutable `protocol_v1` artifacts. Implement the
+development-only producer primitive, then generate four train-OOF expert-output
+folds and one development-train-to-validation output set for every training
+seed. Every producer must verify its assignment, raw-image, encoder recipe,
+class-map, fitting-plot, prediction-plot, and parent-manifest hashes before
+training. M2 does not fit the router and does not open the cleaned test source.
 
 ## Change log
 
@@ -1011,6 +1012,7 @@ No router or gate should be trained before those choices are recorded.
 |---|---|
 | 2026-08-24 | Created the living method specification and implementation roadmap |
 | 2026-08-24 | Replaced nested outer CV for router development with one fixed grouped development holdout plus four-fold cross-fitting inside development-train; recorded the weaker evidence status and frozen-router final-refit rule |
+| 2026-08-25 | Completed M1: froze fold-contained B2 encoder adaptation with legacy BGR/439 preprocessing, sealed the label-blind test identity, materialized and validated grouped assignments, and added protocol/leakage/immutability enforcement |
 
 ## Related pipeline files
 

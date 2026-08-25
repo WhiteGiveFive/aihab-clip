@@ -1,0 +1,932 @@
+# Frozen M1 contract for reliability-aware geographic routing.
+#
+# This file is intentionally self-contained: downstream commands fingerprint the
+# resolved mapping, not a partially merged training config.  The only unresolved
+# Frozen protocol-v1 contract: fold-contained, vision-only adaptation with the
+# explicitly retained legacy BGR/439 preprocessing path.
+
+schema_version: geo_helpfulness_protocol_config_v1
+protocol_id: protocol_v1
+protocol_status: frozen
+dataset_id: cs_gse_100m_l3
+evidence_status: exploratory_router_development
+
+paths:
+  # The two tables are used as one unordered development union.  They come from
+  # the externally pretrained representation and contain 4,200 rows in total.
+  development_source_tables:
+    - ./multimodal_artifacts/joined_tables/cs/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_pretrained/gse_100m/seed1/train.parquet
+    - ./multimodal_artifacts/joined_tables/cs/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_pretrained/gse_100m/seed1/val.parquet
+  # The underlying cleaned-test source path is intentionally absent.  The
+  # one-time identity-sealing command receives it as a command-local argument;
+  # development commands can resolve only this label-blind registry.
+  locked_test_registry_root: ./multimodal_artifacts/locked_test_registry/cs/gse_100m_cleaned_test
+  protocol_root: ./multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/protocol
+  global_test_event_registry: ./multimodal_artifacts/locked_test_registry/cs/gse_100m_cleaned_test/events
+
+identity:
+  canonical_json_version: geo_helpfulness.canonical_json.v1
+  hash_algorithm: sha256
+  row_uid_components:
+    - dataset_id
+    - file_lower
+    - normalized_plot_idx
+  file:
+    type: string
+    unicode_normalization: NFC
+    separator: /
+    convert_backslash: true
+    collapse_repeated_separators: true
+    remove_dot_components: true
+    case_key: casefold
+    reject_absolute: true
+    reject_parent_components: true
+    reject_nul: true
+    reject_empty: true
+    require_casefold_unique: true
+  # CS plot identifiers are opaque strings (for example 751X3), not integers.
+  plot_idx:
+    type: opaque_string
+    unicode_normalization: NFC
+    reject_surrounding_whitespace: true
+    case_sensitive: true
+    reject_nul: true
+    reject_empty: true
+    reject_control_characters: true
+
+development_universe:
+  source_roles:
+    - train
+    - val
+  expected_rows: 4200
+  expected_plots: 1625
+  require_unique_row_uid: true
+  require_unique_file_lower: true
+  require_one_label_per_plot: true
+  require_zero_locked_test_row_overlap: true
+  require_zero_locked_test_plot_overlap: true
+  allowed_image_sources:
+    - ./data/CS_Xplots_2019_2023_train
+  image_path_resolution: join_allowed_image_source_and_canonical_file
+  require_image_path_inside_declared_source: true
+  require_all_image_files_exist: true
+  fingerprint_raw_image_bytes: true
+  source_columns:
+    file: file
+    plot_idx: plot_idx
+    source_split: split
+    image_source: image_source
+    label_name: label_name
+
+locked_test_identity:
+  snapshot_policy: create_once_global_active_snapshot
+  source_projection_allowlist:
+    - file
+    - plot_idx
+  expected_rows: 1347
+  expected_plots: 531
+  manifest_fields:
+    - schema_version
+    - artifact_role
+    - dataset_id
+    - snapshot_id
+    - canonical_json_version
+    - identity_rules
+    - identity_projection_columns
+    - identity_projection_sha256
+    - row_count
+    - plot_count
+    - rows
+    - manifest_sha256
+  row_fields:
+    - row_uid
+    - file
+    - file_lower
+    - plot_idx
+    - normalized_plot_idx
+  forbidden_source_columns:
+    - label_id
+    - label_id_original
+    - label_name
+    - l2_label
+    - target_id
+    - y_true
+    - logits
+    - probabilities
+    - image_embedding
+    - geo_embedding
+
+class_ontology:
+  output_size: 18
+  source: frozen_protocol_not_data_inference
+  development_label_resolution: exact_label_name_lookup_in_frozen_ontology
+  classes:
+    - {dense_id: 0, canonical_l3_id: 0, label_name: Urban}
+    - {dense_id: 1, canonical_l3_id: 1, label_name: Broadleaved Mixed and Yew Woodland}
+    - {dense_id: 2, canonical_l3_id: 2, label_name: Coniferous Woodland}
+    - {dense_id: 3, canonical_l3_id: 4, label_name: Arable and Horticulture}
+    - {dense_id: 4, canonical_l3_id: 5, label_name: Improved Grassland}
+    - {dense_id: 5, canonical_l3_id: 6, label_name: Neutral Grassland}
+    - {dense_id: 6, canonical_l3_id: 7, label_name: Calcareous Grassland}
+    - {dense_id: 7, canonical_l3_id: 8, label_name: Acid Grassland}
+    - {dense_id: 8, canonical_l3_id: 9, label_name: Bracken}
+    - {dense_id: 9, canonical_l3_id: 10, label_name: Dwarf Shrub Heath}
+    - {dense_id: 10, canonical_l3_id: 11, label_name: 'Fen, Marsh, Swamp'}
+    - {dense_id: 11, canonical_l3_id: 12, label_name: Bog}
+    - {dense_id: 12, canonical_l3_id: 13, label_name: Littoral Rock}
+    - {dense_id: 13, canonical_l3_id: 14, label_name: Littoral Sediment}
+    - {dense_id: 14, canonical_l3_id: 15, label_name: Montane}
+    - {dense_id: 15, canonical_l3_id: 17, label_name: Inland Rock}
+    - {dense_id: 16, canonical_l3_id: 18, label_name: Supra-littoral Rock}
+    - {dense_id: 17, canonical_l3_id: 19, label_name: Supra-littoral Sediment}
+
+assignment:
+  role:
+    algorithm: per_class_sha256_largest_remainder_v1
+    seed: 20260824
+    validation_fraction: 0.20
+    exact_train_plots: 1300
+    exact_validation_plots: 325
+    stable_rank_payload: protocol_id|role_seed|canonical_l3_id|normalized_plot_idx
+    quota_initialization: floor_fraction_clipped_to_class_bounds
+    singleton_role: train
+    min_validation_plots_per_non_singleton_class: 1
+    min_train_plots_per_class: 1
+    quota_tie_break: ascending_canonical_l3_id
+  train_oof:
+    algorithm: sklearn.model_selection.StratifiedKFold
+    implementation_contract: sklearn_stratified_kfold_v1
+    n_splits: 4
+    shuffle: true
+    random_state: 20261824
+    unit: plot_idx
+    stratify_by: canonical_l3_id
+    canonical_sort:
+      - canonical_l3_id
+      - normalized_plot_idx
+    permit_missing_class_in_producer_fit: true
+    duplicate_rare_plots: false
+
+experts:
+  modes:
+    - image_only
+    - geo_only
+    - raw_concat
+  mode_inputs:
+    image_only:
+      ordered_components: [l2_normalized_adapted_image_embedding]
+      input_dim: 1152
+    geo_only:
+      ordered_components: [fitting_partition_standardized_gse_100m]
+      input_dim: 64
+    raw_concat:
+      ordered_components:
+        - l2_normalized_adapted_image_embedding
+        - fitting_partition_standardized_gse_100m
+      input_dim: 1216
+  baseline_anchor: raw_concat
+  training_seeds: [1, 2, 3, 4]
+  epochs: 50
+  checkpoint_rule: fixed_final_epoch
+  early_stopping: false
+  report_test_each_epoch: false
+  allow_oracle_test_best: false
+  output_classes: 18
+  head:
+    family: two_layer_mlp
+    layer_order: [linear, relu, dropout, linear]
+    hidden_dim: 256
+    activation: relu
+    dropout: 0.1
+    initialization: pytorch_default_under_training_seed
+    optimizer: adamw
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    optimizer_betas: [0.9, 0.999]
+    optimizer_eps: 1.0e-8
+    amsgrad: false
+    scheduler: none
+    gradient_clipping: none
+    class_weighting: none
+    loss: cross_entropy
+    batch_size: 128
+    num_workers: 0
+    shuffle_training_rows: true
+    drop_last: false
+    gradient_accumulation_steps: 1
+    parameter_dtype: float32
+    mixed_precision: false
+  reproducibility:
+    seed: training_seed
+    seed_python_random: true
+    seed_numpy: true
+    seed_torch_cpu: true
+    seed_torch_cuda_all: true
+    dataloader_generator_seed: training_seed
+    cudnn_benchmark: false
+    cudnn_deterministic: true
+    torch_deterministic_algorithms: true
+  image_input:
+    model: hf-hub:timm/ViT-SO400M-16-SigLIP2-384
+    embedding_dim: 1152
+    normalize_embeddings: true
+  geo_input:
+    feature_family: gse_100m
+    feature_prefix: A
+    feature_dim: 64
+    standardization: training_partition_mean_std
+    zero_std_policy: replace_with_one
+  image_encoder:
+    strategy: fold_contained_adaptation
+    allowed_strategies:
+      - externally_pretrained_fixed
+      - fold_contained_adaptation
+    forbidden_primary_strategy: globally_habitat_finetuned_without_plot_exclusion_proof
+    externally_pretrained_fixed:
+      checkpoint_id: hf-hub:timm/ViT-SO400M-16-SigLIP2-384
+      hub_revision: fec784dabb3081a5f101fc74eefaf9d1ed08237b
+      checkpoint_filename: open_clip_model.safetensors
+      checkpoint_sha256: 8ceec00df3c462d155d172933339cd9178a86bfab72f4458dbe84bd54f5ad026
+      open_clip_config_filename: open_clip_config.json
+      open_clip_config_sha256: 641fd7487d1a6155d9ca895922e164a6383095e73150beb95ecfb40760166500
+      tokenizer_filename: tokenizer.json
+      tokenizer_sha256: 220c63d496e0c14e63eb656c91e0215e926202e4c74b1f089e09f1920d779b04
+      tokenizer_config_sha256: 513e778583a9ac0b74ae47784216f9d654d5132eee62d777597f5e842701323c
+      special_tokens_map_sha256: d4671afd8f9b1ccd170443bd5478c0cc40fdbddc9343034caf6984ffd388b2c4
+      adaptation: none
+      refit_on_all_development: false
+    fold_contained_adaptation:
+      adaptation_recipe:
+        recipe_id: siglip2_vision_only_prompt_supervision_v1
+        initialize_every_fit_from: externally_pretrained_fixed
+        fitting_rows: all_images_from_fitting_plots_only
+        prediction_row_access_during_fit: forbidden
+        share_adapted_vision_encoder_between:
+          - image_only
+          - raw_concat
+        geo_only_uses_image_encoder: false
+        output_embedding:
+          dimension: 1152
+          l2_normalize: true
+        vision_tower:
+          trainable: true
+          unlocked_groups_from_end: 11
+          lock_api: open_clip_model.lock_image_tower
+          freeze_batch_norm_statistics: false
+        text_tower:
+          trainable: false
+          locked_in_full: true
+          text_embeddings_computed_once_before_adaptation: true
+        objective:
+          family: fixed_prompt_supervised_image_classification
+          classes: fixed_dense_18_class_ontology
+          image_feature_normalization: l2
+          text_feature_normalization: l2
+          prompt_ensemble_reduction: normalized_arithmetic_mean
+          fixed_logit_multiplier: 100.0
+          learned_logit_scale: false
+          loss: cross_entropy
+          class_weighting: none
+        prompts:
+          count_per_class: 1
+          tokenizer: checkpoint_native_open_clip_tokenizer
+          order: fixed_dense_ontology
+          values:
+            - 'a habitat photo of Urban, specifically Urban, dense built structures, walls and roofs, sealed hard surfaces like concrete or asphalt, little vegetation or small landscaped patches, roads, kerbs, fences or utilities'
+            - 'a habitat photo of Woodland and Forest, specifically Broadleaved Mixed and Yew Woodland, tall broadleaved canopy, irregular and layered, broad leaves with some evergreen yew, dappled light through mixed canopy, leaf-littered forest floor'
+            - 'a habitat photo of Woodland and Forest, specifically Coniferous Woodland, tall conifer canopy, often uniform or plantation-like, needle-leaved evergreen conifers, darker, more shaded understory, needle litter with sparse ground vegetation or moss'
+            - 'a habitat photo of Cropland, specifically Arable and Horticulture, regular planted rows or plots with uniform spacing, arable crops or horticultural plantings, tilled or ploughed soil with furrows and stubble, actively cultivated or rotational fallow'
+            - 'a habitat photo of Grassland, specifically Improved Grassland, short to medium vegetation height, very even close-cropped sward, grass-dominated, few forbs'
+            - 'a habitat photo of Grassland, specifically Neutral Grassland, medium to tall vegetation height, mixed uneven meadow sward, herbs-dominated, moderate to high forbs'
+            - 'a habitat photo of Grassland, specifically Calcareous Grassland, short vegetation height, close-cropped open turf, fine grasses and herbs dominated, high forb richness'
+            - 'a habitat photo of Grassland, specifically Acid Grassland, short to medium vegetation height, patchy or tussocky sward, fine grasses dominated, low to moderate forbs'
+            - 'a habitat photo of Grassland, specifically Bracken, tall vegetation height, dense canopy of fronds, bracken fronds, low forb richness'
+            - 'a habitat photo of Heathland and Shrub, specifically Dwarf Shrub Heath, low dwarf shrubs (<1.5 m), dwarf-shrub dominated, low woody canopy, heather/ericoids and dwarf gorse, patchy heather with moss/lichen and bare ground'
+            - 'a habitat photo of Wetland, specifically Fen, Marsh, Swamp, tall emergent wetland herbs and sedges, sedges, rushes, reeds and wetland herbs, dense emergent cover with wet channels or patches, waterlogged to shallowly inundated'
+            - 'a habitat photo of Wetland, specifically Bog, low open mossy vegetation with scattered dwarf shrubs, bog-moss and cotton-grass, hummocky surface with small wet hollows, persistently waterlogged'
+            - 'a habitat photo of Marine Inlets and Transitional Waters, specifically Littoral Rock, exposed rock platforms or boulder shores, hard, uneven rock with crevices and pools, bare rock with algal and barnacle encrustation, intertidal, regularly wetted and exposed'
+            - 'a habitat photo of Marine Inlets and Transitional Waters, specifically Littoral Sediment, sand, mud or gravel flats, flat, soft sediment with ripples, mostly bare sediment with sparse algal film, intertidal flats, regularly inundated and exposed'
+            - 'a habitat photo of Montane, specifically Montane, low wind-clipped vegetation above treeline, dwarf shrubs with moss, lichen and short grasses, rocky ground with thin soils and bare patches, open, treeless, exposed upland ridges'
+            - 'a habitat photo of Sparsely Vegetated Land, specifically Inland Rock, exposed inland rock, cliffs or scree, hard rock faces with fissures and ledges, mostly bare rock with sparse crevice plants, dry, wind-exposed inland slopes'
+            - 'a habitat photo of Sparsely Vegetated Land, specifically Supra-littoral Rock, coastal rock above the high-tide line, rugged rock with spray-wet surfaces, salt-tolerant lichens or algae, sparse vegetation, wave-splash zone with salt spray'
+            - 'a habitat photo of Sparsely Vegetated Land, specifically Supra-littoral Sediment, coastal sand, shingle or pebbles, loose granular sediment with ridges, sparse salt-tolerant pioneer plants, above high tide, exposed to spray and wind'
+        preprocessing:
+          pixel_decoding:
+            recipe_id: legacy_opencv_bgr_439_v1
+            decoder: cv2.imread_color
+            decoded_channel_order: BGR
+            pre_resize_size: [439, 439]
+            pre_resize_aspect_policy: force_square
+            pre_resize_interpolation: cv2_inter_linear
+            pil_conversion: image_fromarray_without_channel_swap
+            model_interpretation: bgr_values_are_presented_as_rgb_channels
+            deliberate_legacy_compatibility: true
+            prohibit_silent_rgb_correction: true
+          train_transform:
+            source: checkpoint_native_open_clip_preprocess_train
+            random_resized_crop_size: [384, 384]
+            random_resized_crop_scale: [0.9, 1.0]
+            random_resized_crop_ratio: [0.75, 1.3333]
+            interpolation: bicubic
+            antialias: true
+            convert_to_rgb: true
+            normalize_mean: [0.5, 0.5, 0.5]
+            normalize_std: [0.5, 0.5, 0.5]
+          prediction_transform:
+            source: checkpoint_native_open_clip_preprocess_val
+            resize_size: [384, 384]
+            interpolation: bicubic
+            antialias: true
+            convert_to_rgb: true
+            normalize_mean: [0.5, 0.5, 0.5]
+            normalize_std: [0.5, 0.5, 0.5]
+        optimizer:
+          family: torch_adam
+          learning_rate: 5.0e-5
+          betas: [0.9, 0.999]
+          epsilon: 1.0e-8
+          weight_decay: 0.0
+          amsgrad: false
+        scheduler:
+          family: cosine_annealing_lr
+          t_max_epochs: 5
+          eta_min: 0.0
+          step_timing: end_of_epoch
+        training:
+          epochs: 5
+          batch_size: 16
+          shuffle_rows_each_epoch: true
+          drop_last: false
+          num_workers: 0
+          mixed_precision: device_native_torch_autocast
+          gradient_clipping: none
+          early_stopping: false
+          validation_during_adaptation: forbidden
+          checkpoint_rule: fixed_final_epoch
+        reproducibility:
+          seed: training_seed
+          seed_python_random: true
+          seed_numpy: true
+          seed_torch_cpu: true
+          seed_torch_cuda_all: true
+          dataloader_generator_seed: training_seed
+          cudnn_benchmark: false
+          cudnn_deterministic: true
+          torch_deterministic_algorithms: true
+      refit_on_all_development: true
+  learned_state:
+    fold_local:
+      - adapted_image_encoder_weights
+      - image_only_head
+      - geo_only_head
+      - raw_concat_head
+      - geo_standardization
+    expert_refit_state:
+      - adapted_image_encoder_weights
+      - image_only_head
+      - geo_only_head
+      - raw_concat_head
+      - geo_standardization
+    router_frozen_state:
+      - expert_temperature_scalers
+      - router_feature_schema
+      - numeric_feature_scaler
+      - categorical_vocabularies_and_mappings
+      - router_coefficients
+      - router_policy
+      - threshold_specification
+  execution_graph:
+    encoder_fits_per_training_seed: 6
+    expert_head_fits_per_encoder_stage: 3
+    expert_head_fits_per_training_seed: 18
+    total_encoder_fits_across_all_training_seeds: 24
+    total_expert_head_fits_across_all_training_seeds: 72
+    stages:
+      - stage_id: train_oof_fold_0
+        fitting_plots: development_train_except_oof_fold_0
+        prediction_plots: development_train_oof_fold_0
+        artifact_role: train_oof_fold_outputs
+      - stage_id: train_oof_fold_1
+        fitting_plots: development_train_except_oof_fold_1
+        prediction_plots: development_train_oof_fold_1
+        artifact_role: train_oof_fold_outputs
+      - stage_id: train_oof_fold_2
+        fitting_plots: development_train_except_oof_fold_2
+        prediction_plots: development_train_oof_fold_2
+        artifact_role: train_oof_fold_outputs
+      - stage_id: train_oof_fold_3
+        fitting_plots: development_train_except_oof_fold_3
+        prediction_plots: development_train_oof_fold_3
+        artifact_role: train_oof_fold_outputs
+      - stage_id: development_train_to_validation
+        fitting_plots: all_development_train
+        prediction_plots: all_development_validation
+        artifact_role: development_validation_outputs
+      - stage_id: full_development_to_locked_test
+        fitting_plots: all_development
+        prediction_plots: locked_cleaned_test
+        artifact_role: final_expert_bundle
+        prerequisite: sealed_development_selection_receipt
+        mutable_state: expert_refit_state_only
+        frozen_state: router_frozen_state_byte_for_byte
+    every_stage:
+      initialize_encoder_from_same_pinned_pretrained_checkpoint: true
+      adapt_encoder_on_fitting_plots_only: true
+      train_all_three_mode_heads_on_fitting_plots_only: true
+      fit_geo_standardization_on_fitting_plots_only: true
+      require_fitting_prediction_plot_disjointness: true
+      fixed_18_class_output_head: true
+      checkpoint_rule: fixed_final_epoch
+    excluded_from_encoder_fit_count:
+      - expert_temperature_scaling
+      - router_regularization_grid
+      - router_feature_transforms
+      - hard_override_threshold_selection
+
+calibration:
+  expert_probability:
+    family: scalar_temperature
+    one_per_mode_and_training_seed: true
+    fit_role: development_train_oof
+    fit_once: true
+    apply_unchanged_to:
+      - development_validation
+      - final_development_experts
+      - locked_test
+    objective: multiclass_negative_log_likelihood
+    parameterization: log_temperature
+    optimizer: scipy_bounded_minimize_scalar
+    log_temperature_bounds: [-5.0, 5.0]
+    absolute_tolerance: 1.0e-10
+    max_iterations: 500
+    failure_policy: hard_reject
+  native_t1_role: descriptive_only
+  router_output_calibrator: none
+
+router:
+  target_order:
+    - rescue
+    - harm
+    - both_correct
+    - both_wrong
+  target_definition:
+    rescue: raw_wrong_and_geo_correct
+    harm: raw_correct_and_geo_wrong
+    both_correct: raw_correct_and_geo_correct
+    both_wrong: raw_wrong_and_geo_wrong
+  family: multinomial_logistic_regression
+  penalty: l2
+  implementation:
+    library: sklearn
+    solver: lbfgs
+    multi_class: multinomial
+    fit_intercept: true
+    class_weight: null
+    dual: false
+    warm_start: false
+    n_jobs: 1
+    max_iter: 1000
+    tolerance: 1.0e-8
+    random_state: null
+  regularization_grid_C: [0.01, 0.1, 1.0, 10.0]
+  selection_metric: four_state_log_loss
+  selection_aggregation: arithmetic_mean_across_training_seeds
+  regularization_tie_break: smallest_C
+  choose_best_seed: false
+  score: q_rescue_minus_q_harm
+  numeric_transform:
+    family: standard_scaler
+    fit_role: development_train_oof
+    input_families_in_order: [boolean, integer, numeric]
+    boolean_encoding: false_zero_true_one
+    output_dtype: float64
+    with_mean: true
+    with_std: true
+    variance_ddof: 0
+    zero_variance_scale: 1.0
+    missing_policy: hard_reject
+    nonfinite_policy: hard_reject
+  categorical_transform:
+    family: one_hot
+    fit_role: development_train_oof
+    unknown_policy: error
+    drop: none
+    predicted_class_vocabulary: fixed_dense_ontology
+    pair_vocabulary: cartesian_product_fixed_dense_ontology
+    output_dtype: float64
+    sparse_output: false
+  feature_matrix:
+    block_order:
+      - scaled_boolean_integer_numeric
+      - fixed_vocabulary_one_hot_categorical
+    preserve_allowlist_order_within_each_family: true
+    scaled_numeric_column_count: 25
+    one_hot_column_count: 702
+    total_column_count: 727
+    final_dtype: float64
+    fit_role: development_train_oof
+    schema_change_policy: protocol_version_increment_and_full_cache_invalidation
+  feature_definitions:
+    predicted_class: argmax_with_dense_id_tie_break
+    predicted_class_pair_encoding: first_dense_id_times_18_plus_second_dense_id
+    confidence: maximum_calibrated_probability
+    entropy: negative_sum_p_log_p_natural_log_zero_term_is_zero
+    top2_margin: largest_probability_minus_second_largest_probability
+    image_geo_top3_overlap: cardinality_of_dense_id_top3_set_intersection
+    raw_rank_of_geo_pred: one_based_descending_probability_rank_dense_id_tie_break
+    signed_difference: left_named_quantity_minus_right_named_quantity
+    image_geo_jsd: natural_log_jensen_shannon_divergence_zero_term_is_zero
+    image_geo_total_variation: half_l1_probability_distance
+    probability_validation:
+      finite: true
+      range: [0.0, 1.0]
+      row_sum_absolute_tolerance: 1.0e-8
+  feature_allowlist:
+    categorical:
+      - image_pred
+      - geo_pred
+      - raw_pred
+      - image_geo_pred_pair
+      - geo_raw_pred_pair
+    boolean:
+      - image_geo_agree
+      - image_raw_agree
+      - geo_raw_agree
+    integer:
+      - image_geo_top3_overlap
+      - raw_rank_of_geo_pred
+    numeric:
+      - image_confidence
+      - geo_confidence
+      - raw_confidence
+      - image_entropy
+      - geo_entropy
+      - raw_entropy
+      - image_top2_margin
+      - geo_top2_margin
+      - raw_top2_margin
+      - geo_minus_image_confidence
+      - geo_minus_raw_confidence
+      - geo_minus_image_entropy
+      - geo_minus_raw_entropy
+      - geo_minus_image_margin
+      - geo_minus_raw_margin
+      - image_geo_jsd
+      - image_geo_total_variation
+      - image_probability_at_geo_pred
+      - geo_probability_at_image_pred
+      - raw_probability_at_geo_pred
+  forbidden_feature_patterns:
+    - label
+    - target
+    - true_class
+    - correctness
+    - correct
+    - y_true
+    - true_probability
+    - true_nll
+    - nll_advantage
+
+policy:
+  primary: hard_geo_override
+  effective_action:
+    score_comparison: strict_gt
+    require_geo_raw_disagreement: true
+  threshold_candidates:
+    include_never_intervene: true
+    include_zero: true
+    include_midpoints_between_adjacent_unique_positive_scores: true
+    allow_negative: false
+    score_pooling: all_validation_seed_realizations_for_boundaries_only
+    score_dtype: float64
+    unique_score_equality: exact_float64_value
+    sort_order: ascending
+    midpoint_formula: lower_plus_half_of_upper_minus_lower_in_float64
+    candidate_deduplication: exact_float64_value
+  objective: maximize_mean_rescued_minus_harmed_across_training_seeds
+  feasibility:
+    min_pooled_coverage_fraction: 0.01
+    min_unique_acted_plots: 20
+    max_pooled_harmed_to_rescued_ratio: 0.5
+    require_positive_net_utility: true
+  tie_break_order:
+    - fewer_harms
+    - fewer_actions
+    - higher_threshold
+  infeasible_fallback:
+    kind: never_intervene
+    value_hex: null
+    comparison: strict_gt
+  finite_serialization:
+    kind: finite
+    numeric_field: value_hex
+    numeric_encoding: python_float_hex
+    comparison: strict_gt
+  predeclared_comparators:
+    principal: higher_calibrated_geo_confidence_on_geo_raw_disagreement
+    fixed:
+      - never_intervene
+      - always_geo_on_geo_raw_disagreement
+    secondary_oof_thresholded:
+      - image_geo_jsd
+      - geo_minus_raw_margin
+
+evidence:
+  bootstrap:
+    seed: 20260826
+    replicates: 2000
+    confidence_level: 0.95
+    minimum_valid_replicate_fraction: 0.95
+    unit: complete_plot_idx
+    stratify_by: canonical_l3_id
+    pairing: same_resamples_for_all_models
+    interpretation: descriptive_selection_conditional
+  low_support:
+    image_count_below: 20
+    plot_count_below: 10
+  primary_metrics:
+    - four_state_log_loss
+    - rescue_pr_auc
+    - harm_pr_auc
+    - intervention_coverage
+    - override_precision
+    - rescue_recall
+    - harmful_override_rate
+    - rescued_count
+    - harmed_count
+    - rescued_minus_harmed
+    - delta_accuracy
+  diagnostic_metrics:
+    - four_state_brier_score
+    - top1_accuracy
+    - top3_accuracy
+    - weighted_f1
+    - macro_f1
+    - mcc
+  pass_rule:
+    all_required:
+      - positive_mean_validation_delta_accuracy
+      - positive_net_utility_in_at_least_3_of_4_seeds
+      - pooled_harmed_no_more_than_half_pooled_rescued
+      - pooled_effective_coverage_at_least_1_percent
+      - at_least_20_unique_acted_plots
+      - mean_gain_above_every_predeclared_heuristic
+      - positive_pooled_net_after_removing_best_contributing_plot
+      - development_access_audit_clean
+  no_go_if_any:
+    - mean_net_utility_nonpositive
+    - does_not_exceed_principal_heuristic
+  otherwise: inconclusive
+
+artifact_contract:
+  write_mode: exclusive_create
+  hash_algorithm: sha256
+  canonical_json:
+    version: geo_helpfulness.canonical_json.v1
+    unicode_normalization: NFC
+    sort_keys: true
+    separators: [',', ':']
+    ensure_ascii: false
+    allow_nan: false
+  cache_mismatch_policy: hard_reject
+  required_protocol_files:
+    - development_assignments.parquet
+    - split_balance.csv
+    - resolved_protocol.yaml
+    - locked_test_snapshot_ref.json
+    - protocol_manifest.json
+  assignment_schema:
+    - {name: schema_version, type: string, nullable: false}
+    - {name: protocol_id, type: string, nullable: false}
+    - {name: row_uid, type: sha256_hex, nullable: false}
+    - {name: file, type: string, nullable: false}
+    - {name: file_lower, type: string, nullable: false}
+    - {name: plot_idx, type: string, nullable: false}
+    - {name: source_split, type: string, nullable: false}
+    - {name: image_source, type: string, nullable: false}
+    - {name: label_id_dense, type: int8, nullable: false}
+    - {name: canonical_l3_id, type: int8, nullable: false}
+    - {name: label_name, type: string, nullable: false}
+    - {name: development_role, type: enum_train_validation, nullable: false}
+    - {name: train_oof_fold, type: nullable_int8, nullable: true}
+  model_output_manifest_required_fields:
+    - schema_version
+    - protocol_id
+    - artifact_role
+    - parent_artifact_hashes
+    - row_count
+    - plot_count
+    - fitting_plot_hash
+    - prediction_plot_hash
+    - zero_plot_overlap
+    - class_map_hash
+    - feature_schema_hash
+    - training_seed
+    - encoder_initialization_hash
+    - encoder_adaptation_recipe_hash
+    - input_preprocessing_hash
+    - checkpoint_hash
+    - scaler_hash
+    - fitting_class_plot_support_by_dense_id
+    - content_sha256
+  artifact_parent_roles:
+    train_oof_fold_outputs: [development_assignments, fold_local_expert_fit]
+    development_train_oof_outputs: [development_assignments, train_oof_fold_outputs]
+    development_validation_outputs: [development_assignments, development_train_expert_fit]
+    router_training_dataset: [development_train_oof_outputs]
+    router_candidate_validation_predictions: [router_training_dataset, development_validation_outputs]
+    development_selection_receipt: [router_candidate_validation_predictions, validation_targets]
+    final_expert_bundle: [development_selection_receipt, development_assignments]
+    frozen_router_bundle: [development_selection_receipt]
+    composite_inference_bundle: [final_expert_bundle, frozen_router_bundle]
+    locked_test_predictions: [composite_inference_bundle, locked_test_identity_manifest]
+    locked_test_score_receipt: [locked_test_predictions, locked_test_labels]
+  forbidden_router_training_parent_roles:
+    - final_development_in_sample_outputs
+    - development_validation_outputs
+    - locked_test_predictions
+  fingerprints:
+    - development_identity_projection
+    - development_source_content
+    - development_image_content
+    - locked_test_identity_manifest
+    - class_map
+    - assignments
+    - resolved_protocol
+    - feature_allowlist
+    - code
+    - environment
+    - parent_manifests
+
+commands:
+  development:
+    - freeze-protocol
+    - validate-protocol
+    - build-train-oof
+    - fit-router-candidates
+    - score-router-candidates
+    - fit-final-experts
+  identity_sealing:
+    - freeze-test-identity
+  locked_evaluation:
+    - locked-predict
+    - locked-score
+  m1_implemented:
+    - freeze-test-identity
+    - freeze-protocol
+    - validate-protocol
+  m1_fail_closed:
+    - build-train-oof
+    - fit-router-candidates
+    - score-router-candidates
+    - fit-final-experts
+  development_forbidden_capabilities:
+    - cleaned_test_source_path_resolution
+    - cleaned_test_label_loading
+    - cleaned_test_feature_loading
+    - cleaned_test_diagnostic_loading
+    - per_epoch_test_metrics
+    - oracle_test_best
+  locked_predict_forbidden_capabilities:
+    - label_loading
+    - fitting
+    - calibration
+    - threshold_selection
+    - policy_selection
+    - state_mutation
+  locked_score_forbidden_capabilities:
+    - fitting
+    - recalibration
+    - threshold_search
+    - policy_selection
+    - scientific_override
+    - prediction_mutation
+  locked_score_output_allowlist:
+    - top1_accuracy
+    - top3_accuracy
+    - weighted_f1
+    - macro_f1
+    - mcc
+    - confusion_matrix
+    - intervention_coverage
+    - override_precision
+    - rescue_recall
+    - harmful_override_rate
+    - rescued_count
+    - harmed_count
+    - rescued_minus_harmed
+    - delta_accuracy
+
+schemas:
+  development_train_oof_predictions:
+    role: development_train_oof_outputs
+    label_blind: true
+    required_identity_columns: [schema_version, protocol_id, row_uid, file, file_lower, plot_idx, train_oof_fold, training_seed]
+    required_prediction_columns: [image_logits, geo_logits, raw_logits, image_pred, geo_pred, raw_pred]
+    field_types:
+      schema_version: string
+      protocol_id: string
+      row_uid: sha256_hex
+      file: canonical_relative_path
+      file_lower: unicode_casefold
+      plot_idx: opaque_nfc_string
+      train_oof_fold: int8_0_to_3
+      training_seed: int8
+      image_logits: fixed_size_list_float64_18
+      geo_logits: fixed_size_list_float64_18
+      raw_logits: fixed_size_list_float64_18
+      image_pred: int8_0_to_17
+      geo_pred: int8_0_to_17
+      raw_pred: int8_0_to_17
+    nullable_fields: []
+    unique_key: [row_uid, training_seed]
+    canonical_sort: [row_uid, training_seed]
+  development_validation_predictions:
+    role: development_validation_outputs
+    label_blind: true
+    required_identity_columns: [schema_version, protocol_id, row_uid, file, file_lower, plot_idx, training_seed]
+    required_prediction_columns: [image_logits, geo_logits, raw_logits, image_pred, geo_pred, raw_pred]
+    field_types:
+      schema_version: string
+      protocol_id: string
+      row_uid: sha256_hex
+      file: canonical_relative_path
+      file_lower: unicode_casefold
+      plot_idx: opaque_nfc_string
+      training_seed: int8
+      image_logits: fixed_size_list_float64_18
+      geo_logits: fixed_size_list_float64_18
+      raw_logits: fixed_size_list_float64_18
+      image_pred: int8_0_to_17
+      geo_pred: int8_0_to_17
+      raw_pred: int8_0_to_17
+    nullable_fields: []
+    unique_key: [row_uid, training_seed]
+    canonical_sort: [row_uid, training_seed]
+  router_candidate_validation_predictions:
+    role: router_candidate_validation_predictions
+    label_blind: true
+    required_columns: [schema_version, protocol_id, row_uid, plot_idx, training_seed, C_hex, q_rescue, q_harm, q_both_correct, q_both_wrong, score]
+    field_types:
+      schema_version: string
+      protocol_id: string
+      row_uid: sha256_hex
+      plot_idx: opaque_nfc_string
+      training_seed: int8
+      C_hex: ieee754_float_hex
+      q_rescue: float64_probability
+      q_harm: float64_probability
+      q_both_correct: float64_probability
+      q_both_wrong: float64_probability
+      score: float64
+    nullable_fields: []
+    unique_key: [row_uid, training_seed, C_hex]
+    canonical_sort: [C_hex, training_seed, row_uid]
+  router_targets:
+    role: router_targets
+    label_blind: false
+    required_columns: [schema_version, protocol_id, row_uid, plot_idx, target_state]
+    field_types:
+      schema_version: string
+      protocol_id: string
+      row_uid: sha256_hex
+      plot_idx: opaque_nfc_string
+      target_state: enum_rescue_harm_both_correct_both_wrong
+    nullable_fields: []
+    unique_key: [row_uid]
+    canonical_sort: [row_uid]
+  development_selection_receipt:
+    exclusive_create: true
+    required_fields: [schema_version, protocol_id, candidate_set_hash, candidate_prediction_hash, train_oof_parent_hash, validation_output_parent_hash, ordered_validation_target_hash, ontology_hash, selected_C_hex, threshold_specification, router_frozen_state_hashes, validation_metrics, go_no_go]
+    canonical_serialization: protocol_canonical_json_v1
+    nullable_fields: []
+  composite_inference_bundle:
+    required_fields: [schema_version, protocol_id, final_expert_bundle_hash, frozen_router_bundle_hash, selection_receipt_hash]
+    canonical_serialization: protocol_canonical_json_v1
+    nullable_fields: []
+  locked_test_predictions:
+    label_blind: true
+    exclusive_create: true
+    required_columns: [schema_version, protocol_id, snapshot_id, row_uid, file, file_lower, plot_idx, training_seed, raw_pred, geo_pred, router_score, acted, final_pred]
+    field_types:
+      schema_version: string
+      protocol_id: string
+      snapshot_id: sha256_hex
+      row_uid: sha256_hex
+      file: canonical_relative_path
+      file_lower: unicode_casefold
+      plot_idx: opaque_nfc_string
+      training_seed: int8
+      raw_pred: int8_0_to_17
+      geo_pred: int8_0_to_17
+      router_score: float64
+      acted: boolean
+      final_pred: int8_0_to_17
+    nullable_fields: []
+    unique_key: [row_uid, training_seed]
+    canonical_sort: [row_uid, training_seed]
+  locked_test_score_receipt:
+    exclusive_create: true
+    required_fields: [schema_version, protocol_id, evaluation_event_id, snapshot_id, composite_bundle_hash, prediction_hash, ordered_scoring_label_hash, ontology_hash, adaptive_reuse, metrics]
+    canonical_serialization: protocol_canonical_json_v1
+    nullable_fields: []

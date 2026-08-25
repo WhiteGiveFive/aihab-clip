@@ -1,12 +1,14 @@
-# M1 — Experimental Protocol Delivery Plan
+# M1 — Frozen Experimental Protocol and Delivery Record
 
 ## Status and authority
 
-**Status:** Planning draft; M1 is not complete.
+**Status:** Complete on 2026-08-25. `protocol_v1` is frozen and authorizes M2
+OOF expert generation; it does not authorize router fitting or real locked-test
+inference.
 
 The governing method specification is [README.md](README.md). This record turns
-the selected simplified router-development protocol into an executable M1 work
-plan. M1 freezes contracts and validates boundaries; it does not train the real
+the selected simplified router-development protocol into an executable M1
+record. M1 freezes contracts and validates boundaries; it does not train the real
 router, run the real expert cross-fits, or open cleaned-test labels, features,
 or diagnostics. It may read only a separately sealed, label-blind test identity
 manifest containing row IDs, normalized filenames, and plot IDs for denylist
@@ -39,9 +41,9 @@ has already influenced the research direction and also remains exploratory.
 Strong confirmation requires a new temporal or geographical evaluation set or
 a separately versioned nested protocol.
 
-## Proposed constants to freeze in M1
+## Frozen protocol-v1 constants
 
-| Item | Proposed protocol-v1 value |
+| Item | Frozen protocol-v1 value |
 |---|---|
 | Development roles | Approximately 80% plots train, 20% validation |
 | Role-assignment seed | `20260824` |
@@ -59,9 +61,8 @@ a separately versioned nested protocol.
 | Primary policy utility | `rescued - harmed` and corresponding delta accuracy |
 | Probability treatment | One scalar temperature per expert mode and training seed, fitted once from train OOF logits; native `T=1` is descriptive; no post-hoc router-output calibrator |
 
-M1 must either confirm these values or change them before any real router output
-is inspected. A later change increments the protocol version and invalidates
-dependent caches.
+These values were frozen before any real router output was generated. A later
+change requires a new protocol version and invalidates dependent caches.
 
 At exactly 1,625 plots, the 80/20 target is 1,300 development-train plots and
 325 development-validation plots. Image counts are allowed to differ from an
@@ -128,8 +129,11 @@ Canonical identity serialization is part of the protocol:
   undecodable values rejected;
 - `file_lower` is `file.casefold()` and must be unique across the applicable
   row universe;
-- `plot_idx` must be a non-null exact integer and is serialized as base-10 text
-  without leading zeros; `normalized_plot_idx` means that text;
+- `plot_idx` is an opaque, case-sensitive identifier because the CS data uses
+  alphanumeric values such as `751X3` and `407XX1`; it is converted to Unicode
+  NFC text, must be non-null and non-empty, and values with NUL, control
+  characters, or surrounding whitespace are rejected rather than repaired;
+  `normalized_plot_idx` means that validated NFC text;
 - `row_uid` is lowercase SHA-256 hex over UTF-8 canonical JSON for
   `[dataset_id, file_lower, normalized_plot_idx]`, using Unicode NFC, no
   insignificant whitespace, and no ASCII escaping.
@@ -198,7 +202,7 @@ train_oof_fold
 train rows and null for validation rows. All images from one plot have the same
 role and fold.
 
-## Work package 3 — Freeze the six encoder-stage execution graph
+## Work package 3 — Frozen six-encoder-fit execution graph
 
 For each training seed, the later M2/M4 execution is:
 
@@ -208,36 +212,47 @@ For each training seed, the later M2/M4 execution is:
 | 5 | All development-train | Development-validation | Router and threshold selection |
 | 6 | All development | Locked cleaned test | Fit only `expert_refit_state`; load `router_frozen_state` byte-for-byte for final exploratory inference |
 
-When encoder adaptation is part of the strict expert recipe and shared between
-`image_only` and `raw_concat`, this is six encoder fits per seed. Each fit also
-trains the three mode-specific heads, giving 18 head fits per seed including
-the final full-development fit. Geo-only does not require an image encoder.
-Router-grid fits and the one-time temperature fits reuse stored logits and are
-not included in the six encoder stages.
+Protocol v1 performs six encoder fits per seed: four OOF producers, one
+development-train-to-validation producer, and one final full-development
+producer. Each adapted encoder is shared by `image_only` and `raw_concat` in
+its stage; the stage then trains all three mode-specific heads, giving 18 head
+fits per seed. Across seeds 1–4 this is 24 encoder fits and 72 head fits.
+Geo-only does not consume the image encoder. Router-grid fits and one-time
+temperature fits reuse stored logits and are not included in this count.
 
-Fold-local learned state includes:
+Producer-local learned state includes:
 
-- image encoder adaptation when enabled;
+- adapted image-encoder weights;
 - the three expert heads;
 - geo standardization;
 - the fixed final-epoch checkpoint.
 
-For finalization, `expert_refit_state` comprises image-encoder weights only if
-M1 selects fold-contained encoder adaptation, the three expert heads, and
-explicitly named raw-input preprocessing such as geo mean and standard
-deviation. If M1 selects an externally pretrained fixed encoder, its checkpoint
-is an immutable input rather than refitted state. `router_frozen_state`
+For finalization, `expert_refit_state` comprises the adapted image-encoder
+weights, the three expert heads, and explicitly named raw-input preprocessing
+such as geo mean and standard deviation. The pinned externally pretrained
+checkpoint is the immutable initialization for every fit. `router_frozen_state`
 comprises expert temperature scalers, router feature schema, numeric
 scalers/imputers/density estimators, categorical vocabularies and mappings,
 router coefficients/checkpoints, any declared router-output calibrator, policy,
 and threshold specification.
 
-The primary protocol uses fixed epochs, so neither an OOF prediction fold nor
-development-validation selects an expert checkpoint. The globally
-habitat-finetuned encoder may be primary only if its training provenance proves
-it did not see the prediction plots; otherwise M1 must choose fold-contained
-encoder adaptation or an externally pretrained fixed encoder. A contaminated
-global representation may be retained only as a labelled sensitivity analysis.
+The primary protocol uses fold-contained, vision-only encoder adaptation
+(`siglip2_vision_only_prompt_supervision_v1`).
+Every producer starts from the pinned externally pretrained SigLIP2 checkpoint,
+unlocks the last 11 vision groups, keeps the complete text tower frozen, and
+uses one frozen hierarchical/descriptive prompt for each of the 18 classes.
+It optimizes prompt-supervised cross-entropy for five fixed epochs with Adam
+(`lr=5e-5`, zero weight decay), cosine annealing, batch size 16, and no held-out
+evaluation or checkpoint selection. The selected legacy input path is frozen
+explicitly: OpenCV BGR decode, forced 439×439 resize, and `Image.fromarray`
+without a BGR-to-RGB swap before the checkpoint-native SigLIP2 transforms. This
+compatibility quirk must not be silently corrected within `protocol_v1`.
+
+The protocol uses fixed epochs, so neither an OOF prediction fold nor
+development-validation selects an expert checkpoint. The existing global
+habitat-finetuned checkpoint is excluded from the primary protocol because its
+training plots overlap the development universe; it may be retained only as a
+labelled sensitivity analysis.
 
 ## Work package 4 — Freeze router selection and finalization
 
@@ -276,7 +291,7 @@ scores pooled only to define candidate boundaries. Protocol v1 prohibits
 negative thresholds. An effective action also requires geo and raw predictions
 to disagree. Select one common threshold specification that maximizes mean
 `rescued - harmed` across the four seed-specific policies, subject to the
-proposed v1 constraints:
+frozen v1 constraints:
 
 - pooled effective coverage of at least 1% across seed realizations;
 - effective actions spanning at least 20 unique validation plots across any
@@ -327,8 +342,8 @@ these rows is descriptive and conditional on the same data having selected
 `C` and the threshold; it does not repair selection bias or fixed-split
 sensitivity.
 
-Before M4 executes, M1 must freeze exact pass, inconclusive, and no-go rules.
-The proposed pass rule requires all of:
+Before M4 executes, the following frozen pass, inconclusive, and no-go rules
+apply. Pass requires all of:
 
 - positive mean validation delta accuracy across seeds 1–4;
 - positive net utility in at least three of four seeds;
@@ -492,9 +507,9 @@ Add tests for:
 - a second protocol being unable to replace the global active test snapshot;
 - exact regeneration of assignment content hashes.
 
-## Planned repository changes
+## Implemented repository changes
 
-The M1 implementation must avoid these existing-path hazards:
+The M1 implementation isolates itself from these existing-path hazards:
 
 - the current joined-split loader opens train, validation, and test together;
 - the current label-map builder can consult test labels;
@@ -505,47 +520,104 @@ The M1 implementation must avoid these existing-path hazards:
 - the existing habitat-finetuned checkpoint has development-overlapping
   training provenance unless a stricter manifest proves otherwise.
 
-The protocol runner therefore needs explicit development-only loaders and a
-fixed-budget train-and-predict primitive. It must not repurpose the legacy
-validation loader for an OOF fold, because that path can select a checkpoint
-using the same rows whose predictions are supposed to be held out.
+The protocol runner therefore uses development-only metadata loading and
+fail-closed shells for later training commands. M2 must add a fixed-budget
+train-and-predict primitive without repurposing the legacy validation loader,
+because that path can select a checkpoint using the same rows whose predictions
+are supposed to be held out.
 
 | Path | M1 responsibility |
 |---|---|
 | `configs/multimodal_geo_helpfulness.yaml` | Frozen protocol constants and paths |
 | `multimodal/geo_helpfulness_protocol.py` | Canonical universe, class map, assignments, schemas, hashes, validators |
+| `multimodal/geo_helpfulness_locked_eval.py` | Capability-limited synthetic locked predictor and scorer |
 | `tools/run_multimodal_geo_helpfulness.py` | Protocol commands plus fail-closed later command shells and synthetic locked-evaluation path |
 | `tests/test_multimodal_geo_protocol.py` | Determinism, grouping, denylist, schema, and cache tests |
 | `dev_plans/reliability_aware_geo_fusion/README.md` | Governing method and roadmap |
 | `dev_plans/reliability_aware_geo_fusion/01_experimental_protocol.md` | Decisions, implementation record, and M1 completion evidence |
 
-## Delivery order
+## Completion evidence
 
-1. Confirm the proposed constants and final evidence wording in this record.
-2. Seal the label-blind locked-test identity manifest.
-3. Implement the canonical development universe and fixed class-map contract.
-4. Implement deterministic role and OOF-fold materialization.
-5. Implement schemas, manifests, fingerprints, and cache rejection.
-6. Add development/test command separation and synthetic fixtures.
-7. Run focused tests and a metadata-only protocol dry run.
-8. Inspect split balance, especially rare classes, without using model results.
-9. Freeze `protocol_v1`, write immutable artifacts, and record commands, hashes,
-   test results, and unresolved limitations here.
+The active label-blind locked-test snapshot contains 1,347 rows and 531 plots.
+Its identity-projection SHA-256 is
+`1dbe08ab297ea39a53fe0e183648a0ff42929364162b0d6835756817e6acf284`.
+The source path was supplied only to the one-time identity command and is absent
+from shared protocol configuration and the sealed manifest.
+
+The immutable development assignment contains 4,200 images from 1,625 plots:
+
+| Partition | Images | Plots |
+|---|---:|---:|
+| Development-train | 3,378 | 1,300 |
+| Development-validation | 822 | 325 |
+| Train OOF fold 0 | 862 | 325 |
+| Train OOF fold 1 | 815 | 325 |
+| Train OOF fold 2 | 849 | 325 |
+| Train OOF fold 3 | 852 | 325 |
+
+The assignment content SHA-256 is
+`1c00ebbd93349e544002f37db66ff1278ef0b8034738ea4448dfc6fb18376928`.
+Regeneration after a deterministic input shuffle produced the same hash and an
+exactly equal table. All development files resolve inside the single allow-
+listed image source; the aggregate raw-image content SHA-256 over 4,200 files is
+`3fff9a45f9a315beb3f9c29e5cc2eaf50497268b347f94c030c566c3c49715c3`.
+
+The habitat-aware balance constraints passed. Singleton Littoral Rock remains
+in development-train. Some OOF producers necessarily lack Urban, Littoral
+Rock, Montane, or Supra-littoral Rock because those classes have only one train
+plot; the ontology and every output head remain fixed at 18 classes.
+
+Executed checks:
+
+```text
+python -m pytest -q tests/test_multimodal_geo_protocol.py
+43 passed
+
+python tools/run_multimodal_geo_helpfulness.py freeze-protocol ...
+python tools/run_multimodal_geo_helpfulness.py validate-protocol ...
+python tools/run_multimodal_geo_helpfulness.py validate-protocol ...
+status=valid on both independent validations
+```
+
+The repository-wide suite produced 120 passes and one unrelated pre-existing
+failure in `tests/test_multimodal_geo_10m.py`: its assertion treats metadata
+column `ID` as an `I*` embedding column. No M1 code participates in that path.
+The focused M1 suite, compilation checks, Markdown/config consistency audit,
+and `git diff --check` passed.
+
+The frozen artifacts live under:
+
+```text
+multimodal_artifacts/locked_test_registry/cs/gse_100m_cleaned_test/
+multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/protocol/
+```
+
+Final immutable file hashes:
+
+| Artifact | SHA-256 |
+|---|---|
+| `development_assignments.parquet` | `0e38ca3cc53ea79aed8bba01316add435050215898979505c2f6673a5f9b6e8a` |
+| `split_balance.csv` | `850eed0acaff8a337a8e3b3099bae8aedcf34720a80aee4448c5756947b19ac8` |
+| `resolved_protocol.yaml` | `c5a803b040fb51121b63e38cd2db7c0d726b7cfabaf5d3c5a548105cfb5feb8a` |
+| `locked_test_snapshot_ref.json` | `5d715094d09a98d8d325442ea6500eaafeb865237e2469861fe159b1a4f5b6a6` |
+| `protocol_manifest.json` | `1df9a7300ca55fd6d11a854b1c6c4bf78d1944c38438cce030d0de6294cd2645` |
+
+`protocol_manifest.json` is the authoritative inventory of source, raw-image,
+ontology, feature-schema, assignment, config, code, environment, and artifact
+fingerprints. Validation rejects any mismatch.
 
 ## M1 completion gate
 
-M1 is complete only when:
+M1 completed every gate:
 
-- the development universe and fixed class mapping are test-independent;
-- encoder provenance passes or a leakage-clean representation recipe is chosen;
-- role/fold assignments regenerate identically and pass plot/test overlap tests;
-- the exact seeds, router grid, calibration choice, threshold rule, metrics, and
-  go/no-go semantics are no longer open;
-- protocol artifacts and their content fingerprints validate;
-- a development smoke test cannot load cleaned-test data;
-- the locked evaluator passes on a synthetic fixture without opening real test
-  labels;
-- the README, config, manifest, and this record describe the same protocol.
+- [x] the development universe and fixed class mapping are test-independent;
+- [x] pinned encoder provenance and the fold-contained B2 recipe are frozen;
+- [x] role/fold assignments regenerate identically and pass plot/test overlap tests;
+- [x] seeds, router grid, calibration, threshold, metrics, and go/no-go rules are closed;
+- [x] protocol artifacts and content fingerprints validate twice;
+- [x] a development smoke test succeeds after its command-local test source is removed;
+- [x] the locked evaluator passes on a synthetic fixture without real test-label access;
+- [x] the README, config, manifest, and this record describe the same protocol.
 
 Completing M1 authorizes M2 OOF generation. It does not authorize router
 training, cleaned-test inference, or gated-fusion development.
