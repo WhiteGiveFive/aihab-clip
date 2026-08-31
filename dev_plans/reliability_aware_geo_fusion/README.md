@@ -23,8 +23,8 @@ made, or a step-specific implementation record is created.
 | Primary baseline anchor | `raw_concat` |
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
-| Current method status | M1 protocol_v1 complete and frozen; M2 OOF expert generation is next; learning pipeline not started |
-| Last updated | 2026-08-25 |
+| Current method status | M1 protocol_v1 complete and frozen; M2 implementation ready, GPU execution pending; learning pipeline not started |
+| Last updated | 2026-08-31 |
 
 ## Contents
 
@@ -424,7 +424,7 @@ Acceptance criteria:
 
 ### M2 — Generate honest out-of-fold expert outputs
 
-**Status:** Planned
+**Status:** Implementation ready; execution pending
 
 Use the fixed development split from M1:
 
@@ -947,7 +947,7 @@ Report overall and per habitat:
 |---|---|---|---|
 | M0 Baselines and diagnostic evidence | Complete | Agreement cache, notebook, report, and reproduction checks | Preserve as immutable motivation |
 | M1 Experimental protocol | Complete | Label-blind test identity, 4,200-row assignments, split balance, resolved config, protocol manifest, capability boundaries, and 43 focused tests validate | Preserve protocol_v1 immutably |
-| M2 OOF expert outputs | Planned | M1 now authorizes OOF generation; no real OOF cache exists | Implement and run four OOF producers plus train-to-validation for seeds 1–4 |
+| M2 OOF expert outputs | Implementation ready; execution pending | Additive M2 runner/core/tests are implemented and preserve M1 fingerprints; no real OOF cache exists yet | Run four OOF producers plus train-to-validation for seeds 1–4, then aggregate and validate |
 | M3 Targets and router features | Planned | Test diagnostics exist, but no training dataset | Implement only from validated OOF outputs |
 | M4 Router feasibility | Planned | No router has been trained | Begin with output-only logistic router |
 | M5 Test-time correction | Planned | No frozen score/threshold policy exists | Proceed only after the router passes the internal development gate |
@@ -964,7 +964,7 @@ results, unresolved issues, and completion evidence for that step.
 | Planned record | Milestone | Status |
 |---|---|---|
 | [`01_experimental_protocol.md`](01_experimental_protocol.md) | M1 | Complete |
-| `02_oof_expert_outputs.md` | M2 | Not created |
+| [`02_oof_expert_outputs.md`](02_oof_expert_outputs.md) | M2 | Implementation ready; execution pending |
 | `03_targets_and_features.md` | M3 | Not created |
 | `04_router_feasibility.md` | M4 | Not created |
 | `05_test_time_correction.md` | M5 | Not created |
@@ -996,15 +996,15 @@ corresponding record exists.
 | D016 | 2026-08-25 | Confirmed | Freeze the text tower, unlock the last 11 vision groups, and use the fixed 18-class prompt objective for five epochs | Retains the intended habitat adaptation while keeping the recipe bounded and reproducible |
 | D017 | 2026-08-25 | Confirmed | Retain the legacy OpenCV BGR decode and forced 439×439 pre-resize in protocol v1 | Preserves historical preprocessing compatibility; correcting channel order or aspect handling requires a new protocol version |
 | D018 | 2026-08-25 | Confirmed | Derive dense and canonical development labels by exact label-name lookup in the frozen ontology | Removes dependence on legacy dense-label mappings that could have test-informed provenance |
+| D019 | 2026-08-31 | Confirmed | Implement M2 as an additive fingerprinted child of immutable M1, with one resumable end-to-end command per seed and a separate strict four-seed aggregate | Preserves `protocol_v1` fingerprints while making all five M2 producers per seed independently auditable and restart-safe |
 
 ## Immediate next action
 
-Begin M2 from the immutable `protocol_v1` artifacts. Implement the
-development-only producer primitive, then generate four train-OOF expert-output
-folds and one development-train-to-validation output set for every training
-seed. Every producer must verify its assignment, raw-image, encoder recipe,
-class-map, fitting-plot, prediction-plot, and parent-manifest hashes before
-training. M2 does not fit the router and does not open the cleaned test source.
+Execute the implemented M2 runner for training seeds 1–4, then run its aggregate
+command. Validate the resulting 13,512-row development-train OOF table,
+3,288-row label-blind development-validation table, producer manifests,
+checkpoint reproductions, and OOF performance report before marking M2
+complete. M2 does not fit the router and does not open the cleaned test source.
 
 ## Change log
 
@@ -1013,6 +1013,7 @@ training. M2 does not fit the router and does not open the cleaned test source.
 | 2026-08-24 | Created the living method specification and implementation roadmap |
 | 2026-08-24 | Replaced nested outer CV for router development with one fixed grouped development holdout plus four-fold cross-fitting inside development-train; recorded the weaker evidence status and frozen-router final-refit rule |
 | 2026-08-25 | Completed M1: froze fold-contained B2 encoder adaptation with legacy BGR/439 preprocessing, sealed the label-blind test identity, materialized and validated grouped assignments, and added protocol/leakage/immutability enforcement |
+| 2026-08-31 | Implemented the additive M2 producer, per-seed runner, immutable checkpoint/output validation, four-seed aggregation, OOF report, and CPU synthetic acceptance tests; real GPU execution remains pending |
 
 ## Related pipeline files
 
