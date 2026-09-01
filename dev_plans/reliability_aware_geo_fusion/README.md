@@ -23,7 +23,7 @@ made, or a step-specific implementation record is created.
 | Primary baseline anchor | `raw_concat` |
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
-| Current method status | M1 protocol_v1 complete and frozen; M2 implementation ready, GPU execution pending; learning pipeline not started |
+| Current method status | M1 protocol_v1 complete and frozen; M2 expert outputs complete, aggregated, and validated; M3 ready to begin |
 | Last updated | 2026-08-31 |
 
 ## Contents
@@ -424,7 +424,7 @@ Acceptance criteria:
 
 ### M2 — Generate honest out-of-fold expert outputs
 
-**Status:** Implementation ready; execution pending
+**Status:** Complete
 
 Use the fixed development split from M1:
 
@@ -463,14 +463,17 @@ protocol ID, artifact namespace, and complete rerun; it is not part of the
 simplified router protocol and its terminology must not be applied to these
 artifacts.
 
-Planned artifacts:
+Completed M2 artifacts:
 
-- four train-fold `heldout_model_outputs.parquet` files;
+- four train-fold `heldout_model_outputs.parquet` files per seed (16 total);
 - `development_train_oof_model_outputs.parquet`;
 - `development_validation_model_outputs.parquet`;
-- final full-development expert bundle and frozen router bundle;
 - output manifests, fold-level configs, checkpoints, metrics, and fingerprints;
 - an OOF reproduction report.
+
+The final full-development expert bundle and frozen router bundle are not M2
+artifacts. They are created only after the later router-selection milestones
+freeze temperatures, router feature state, coefficients, policy, and threshold.
 
 Acceptance criteria:
 
@@ -947,12 +950,12 @@ Report overall and per habitat:
 |---|---|---|---|
 | M0 Baselines and diagnostic evidence | Complete | Agreement cache, notebook, report, and reproduction checks | Preserve as immutable motivation |
 | M1 Experimental protocol | Complete | Label-blind test identity, 4,200-row assignments, split balance, resolved config, protocol manifest, capability boundaries, and 43 focused tests validate | Preserve protocol_v1 immutably |
-| M2 OOF expert outputs | Implementation ready; execution pending | Additive M2 runner/core/tests are implemented and preserve M1 fingerprints; no real OOF cache exists yet | Run four OOF producers plus train-to-validation for seeds 1–4, then aggregate and validate |
-| M3 Targets and router features | Planned | Test diagnostics exist, but no training dataset | Implement only from validated OOF outputs |
+| M2 OOF expert outputs | Complete | All 20 producers validate; sealed aggregates contain 13,512 OOF and 3,288 label-blind validation records; checkpoint replay and the OOF report reproduce | Preserve the immutable M2 artifacts and consume them through validated readers |
+| M3 Targets and router features | Planned | Validated multi-seed OOF expert outputs are available; no router dataset has been constructed | Build targets and deployment-safe features from the sealed OOF aggregate only |
 | M4 Router feasibility | Planned | No router has been trained | Begin with output-only logistic router |
 | M5 Test-time correction | Planned | No frozen score/threshold policy exists | Proceed only after the router passes the internal development gate |
 | M6 Gated residual fusion | Planned | Current model is naive concatenation | Proceed only after router go/no-go passes |
-| M7 Robust confirmation | Planned | Single-seed agreement evidence only | Run matched seeds and seek independent data |
+| M7 Robust confirmation | Planned | Multi-seed OOF expert evidence exists, but the selected router and full stack have no matched multi-seed or independent confirmation | Run the eventual frozen stack across matched seeds and seek independent data |
 | M8 Integration and reproducibility | Planned | No new-method runner or tests | Integrate alongside each implementation milestone |
 
 ## Step-specific development records
@@ -964,7 +967,7 @@ results, unresolved issues, and completion evidence for that step.
 | Planned record | Milestone | Status |
 |---|---|---|
 | [`01_experimental_protocol.md`](01_experimental_protocol.md) | M1 | Complete |
-| [`02_oof_expert_outputs.md`](02_oof_expert_outputs.md) | M2 | Implementation ready; execution pending |
+| [`02_oof_expert_outputs.md`](02_oof_expert_outputs.md) | M2 | Complete |
 | `03_targets_and_features.md` | M3 | Not created |
 | `04_router_feasibility.md` | M4 | Not created |
 | `05_test_time_correction.md` | M5 | Not created |
@@ -1000,11 +1003,12 @@ corresponding record exists.
 
 ## Immediate next action
 
-Execute the implemented M2 runner for training seeds 1–4, then run its aggregate
-command. Validate the resulting 13,512-row development-train OOF table,
-3,288-row label-blind development-validation table, producer manifests,
-checkpoint reproductions, and OOF performance report before marking M2
-complete. M2 does not fit the router and does not open the cleaned test source.
+Begin M3 from the validated, sealed M2 aggregates. Join development-train labels
+to the OOF table only for target construction, build the allow-listed
+deployment-safe router features, quantify rescue/harm target prevalence, and
+seal the router dataset and feature-schema manifest. Do not use
+development-validation labels to revise the feature schema, and do not open the
+cleaned test source.
 
 ## Change log
 
@@ -1013,7 +1017,8 @@ complete. M2 does not fit the router and does not open the cleaned test source.
 | 2026-08-24 | Created the living method specification and implementation roadmap |
 | 2026-08-24 | Replaced nested outer CV for router development with one fixed grouped development holdout plus four-fold cross-fitting inside development-train; recorded the weaker evidence status and frozen-router final-refit rule |
 | 2026-08-25 | Completed M1: froze fold-contained B2 encoder adaptation with legacy BGR/439 preprocessing, sealed the label-blind test identity, materialized and validated grouped assignments, and added protocol/leakage/immutability enforcement |
-| 2026-08-31 | Implemented the additive M2 producer, per-seed runner, immutable checkpoint/output validation, four-seed aggregation, OOF report, and CPU synthetic acceptance tests; real GPU execution remains pending |
+| 2026-08-31 | Implemented the additive M2 producer, per-seed runner, immutable checkpoint/output validation, four-seed aggregation, OOF report, and CPU synthetic acceptance tests |
+| 2026-08-31 | Completed M2 GPU execution for seeds 1–4 and sealed validated 13,512-row OOF and 3,288-row label-blind validation aggregates; all 20 producer checkpoints and the OOF report reproduce |
 
 ## Related pipeline files
 
