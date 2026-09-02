@@ -147,6 +147,25 @@ development-validation labels.
 - All producer and aggregate artifacts are immutably published with no staging
   directories remaining.
 
+## Downstream M3/M4 handoff clarification
+
+**Decision recorded:** 2026-09-01.
+
+M3 preserves one raw-fusion-relative target for every
+`(row_uid, training_seed)` realization. It does not average probabilities,
+vote over target states, select a representative seed, or otherwise collapse
+the four seed-specific expert outcomes. A projection for one fixed seed remains
+uniquely keyed by `row_uid`; the combined physical M3 target table is keyed by
+the composite identity.
+
+The native-`T=1` probabilities in M2 remain descriptive integrity outputs. M3
+freezes a stateless semantic feature builder that requires explicitly scalar-
+temperature-calibrated probability matrices, but it neither fits temperatures
+nor materializes feature rows from M2's native probabilities. M4 owns the 12
+temperature fits (three expert modes by four training seeds), applies them to
+the authoritative logits, invokes the unchanged M3 builder, fits the declared
+feature transforms, and materializes `router_dataset.parquet`.
+
 ## Out of scope
 
 Temperature calibration, router targets/features, router fitting and threshold

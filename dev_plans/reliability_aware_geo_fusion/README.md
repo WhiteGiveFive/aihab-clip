@@ -23,8 +23,8 @@ made, or a step-specific implementation record is created.
 | Primary baseline anchor | `raw_concat` |
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
-| Current method status | M1 protocol_v1 complete and frozen; M2 expert outputs complete, aggregated, and validated; M3 ready to begin |
-| Last updated | 2026-08-31 |
+| Current method status | M1 protocol_v1, M2 expert outputs, and M3 seed-specific target/feature contract complete, sealed, and validated; M4 ready to begin |
+| Last updated | 2026-09-01 |
 
 ## Contents
 
@@ -491,35 +491,52 @@ Acceptance criteria:
 
 ### M3 — Build targets and deployment-safe features
 
-**Status:** Planned
+**Status:** Complete as of 2026-09-01
 
 Tasks:
 
 1. construct `rescue`, `harm`, `both_correct`, and `both_wrong` targets relative
-   to `raw_concat`;
+   to `raw_concat`, retaining every seed realization under the combined key
+   `(row_uid, training_seed)` without averaging, voting, or deduplication;
 2. retain image-relative geo-exclusive states only as auxiliary diagnostics;
-3. implement one allow-listed feature builder for both router training and
-   inference;
-4. initially use output-level features only;
+3. implement one stateless, allow-listed 30-feature builder for both router
+   training and inference, requiring explicitly scalar-temperature-calibrated
+   18-way probability matrices;
+4. freeze the semantic feature schema and M4's later deterministic expansion to
+   25 scaled plus 702 fixed-vocabulary one-hot columns (727 `float64` columns);
 5. quantify target prevalence from development-train OOF rows overall, per
-   habitat, per plot, and per predicted class pair; do not use validation
-   prevalence to revise the feature schema;
-6. add an automated forbidden-feature audit.
+   seed, per habitat, per plot, and per predicted class pair; do not open
+   development-validation outputs or use validation prevalence to revise the
+   feature schema;
+6. add an automated forbidden-feature and artifact-role audit;
+7. seal and revalidate the real M3 bundle as an additive child of immutable M1
+   and M2.
 
-Planned artifacts:
+M3 artifacts:
 
-- `router_dataset.parquet`;
-- router feature-schema manifest;
-- target-prevalence report;
-- feature leakage audit.
+- `router/targets_and_feature_contract/router_targets.parquet`;
+- `router/targets_and_feature_contract/router_feature_schema.json`;
+- `router/targets_and_feature_contract/target_prevalence.json`;
+- `router/targets_and_feature_contract/feature_leakage_audit.json`;
+- `router/targets_and_feature_contract/manifest.json`.
+
+Temperature fitting, calibrated feature-row materialization, learned feature
+transforms, and `router_dataset.parquet` belong to M4. M2's native-`T=1`
+probabilities remain descriptive and are rejected by the primary M3 builder.
 
 Acceptance criteria:
 
 - no router feature requires a true label or correctness at deployment;
 - true-class NLL and NLL advantage cannot enter the router matrix;
 - feature construction is identical during training and inference;
-- undefined signals and missing classes are handled deterministically;
-- rescue and harm support is known before model selection.
+- the combined target table contains all 13,512 records in canonical
+  `(row_uid, training_seed)` order, with 3,378 records for each seed;
+- undefined signals, probability ties, zero probabilities, and missing local
+  categories are handled deterministically under the fixed 18-class ontology;
+- rescue and harm support is known before model selection;
+- a valid rerun reuses the sealed bundle, while tampering and stale lineage fail
+  closed without overwrite;
+- no M3 artifact contains calibrated feature rows or `router_dataset.parquet`.
 
 ### M4 — Demonstrate a learnable router
 
@@ -550,9 +567,12 @@ Use the single grouped development split defined in M1:
 
 1. construct router-training data only from the four-fold OOF expert outputs
    within development-train;
-2. fit the scalar expert temperatures once, fit learned feature transforms, and
-   fit each declared router-regularization candidate only on those OOF rows; no
-   separate post-hoc router calibrator is used in protocol v1;
+2. fit the 12 scalar expert temperatures (three modes by four seeds) once from
+   authoritative OOF logits, derive calibrated probabilities, invoke M3's
+   unchanged stateless feature builder, materialize `router_dataset.parquet`,
+   fit learned feature transforms, and fit each declared router-regularization
+   candidate only on those OOF rows; no separate post-hoc router calibrator is
+   used in protocol v1;
 3. fit the three experts separately on all development-train plots and apply
    each frozen candidate once to development-validation outputs;
 4. in a fit-capable but label-blind phase, seal every candidate's validation
@@ -772,14 +792,18 @@ notebook-only logic.
 |---|---|
 | `multimodal/geo_helpfulness_protocol.py` | Development identities, class map, grouped assignments, manifests, fingerprints, and boundary validators |
 | `multimodal/geo_helpfulness_locked_eval.py` | Capability-limited locked prediction/scoring boundary exercised on synthetic fixtures in M1 |
-| `multimodal/geo_helpfulness.py` | Targets, feature schema, utility score, policies, metrics |
+| `multimodal/geo_helpfulness_oof.py` | Immutable M2 expert producers, output validation, and aggregation |
+| `multimodal/geo_helpfulness_targets_features.py` | M3 seed-specific targets, pure semantic feature builder, frozen schema, reports, leakage audit, and immutable bundle validation |
 | `multimodal/router.py` | Router models, fitting, calibration, serialization |
 | `multimodal/models.py` | Gated geo-residual architecture |
 | `multimodal/trainer.py` | New fusion mode and optional auxiliary losses |
-| `tools/run_multimodal_geo_helpfulness.py` | OOF generation, router fitting, and evaluation orchestration |
+| `tools/run_multimodal_geo_helpfulness.py` | Frozen M1 protocol build and validation |
+| `tools/run_multimodal_geo_helpfulness_m2.py` | M2 per-seed expert execution and four-seed aggregation |
+| `tools/run_multimodal_geo_helpfulness_m3.py` | CPU-only M3 bundle build and validation |
 | `configs/multimodal_geo_helpfulness.yaml` | Fold, router, gate, policy, and artifact settings |
 | `tests/test_multimodal_geo_protocol.py` | Deterministic assignments, manifests, denylist, cache, and command-boundary tests |
-| `tests/test_multimodal_geo_helpfulness.py` | Pure target/feature/policy and leakage tests |
+| `tests/test_multimodal_geo_targets_features.py` | Pure M3 target, feature, schema, prevalence, and leakage tests |
+| `tests/test_multimodal_geo_m3_artifacts.py` | M3 lineage, publication, reuse, tamper, and command-boundary tests |
 | `tests/test_multimodal_gated_fusion.py` | Model identity, training, and checkpoint tests |
 
 Keep development artifacts separate from final test reports. A proposed layout
@@ -812,7 +836,13 @@ multimodal_artifacts/
 │   │   ├── frozen_router_bundle_manifest.json
 │   │   └── composite_inference_bundle_manifest.json
 │   └── router/
-│       └── router_dataset.parquet
+│       ├── targets_and_feature_contract/       # M3
+│       │   ├── router_targets.parquet
+│       │   ├── router_feature_schema.json
+│       │   ├── target_prevalence.json
+│       │   ├── feature_leakage_audit.json
+│       │   └── manifest.json
+│       └── router_dataset.parquet               # M4
 └── reports/cs/gse_100m_cleaned_test/geo_helpfulness/<evaluation_event_id>/
     └── locked_test/
 ```
@@ -951,7 +981,7 @@ Report overall and per habitat:
 | M0 Baselines and diagnostic evidence | Complete | Agreement cache, notebook, report, and reproduction checks | Preserve as immutable motivation |
 | M1 Experimental protocol | Complete | Label-blind test identity, 4,200-row assignments, split balance, resolved config, protocol manifest, capability boundaries, and 43 focused tests validate | Preserve protocol_v1 immutably |
 | M2 OOF expert outputs | Complete | All 20 producers validate; sealed aggregates contain 13,512 OOF and 3,288 label-blind validation records; checkpoint replay and the OOF report reproduce | Preserve the immutable M2 artifacts and consume them through validated readers |
-| M3 Targets and router features | Planned | Validated multi-seed OOF expert outputs are available; no router dataset has been constructed | Build targets and deployment-safe features from the sealed OOF aggregate only |
+| M3 Targets and router features | Complete | Sealed bundle contains 13,512 composite-key targets, the 30-feature/727-column future-transform schema, complete prevalence, a passing leakage audit, and immutable M1/M2/M3 lineage; validate and second build both return `reused_valid` | Preserve the bundle and consume it unchanged from M4 |
 | M4 Router feasibility | Planned | No router has been trained | Begin with output-only logistic router |
 | M5 Test-time correction | Planned | No frozen score/threshold policy exists | Proceed only after the router passes the internal development gate |
 | M6 Gated residual fusion | Planned | Current model is naive concatenation | Proceed only after router go/no-go passes |
@@ -968,7 +998,7 @@ results, unresolved issues, and completion evidence for that step.
 |---|---|---|
 | [`01_experimental_protocol.md`](01_experimental_protocol.md) | M1 | Complete |
 | [`02_oof_expert_outputs.md`](02_oof_expert_outputs.md) | M2 | Complete |
-| `03_targets_and_features.md` | M3 | Not created |
+| [`03_targets_and_features.md`](03_targets_and_features.md) | M3 | Complete |
 | `04_router_feasibility.md` | M4 | Not created |
 | `05_test_time_correction.md` | M5 | Not created |
 | `06_gated_fusion.md` | M6 | Not created |
@@ -1000,15 +1030,18 @@ corresponding record exists.
 | D017 | 2026-08-25 | Confirmed | Retain the legacy OpenCV BGR decode and forced 439×439 pre-resize in protocol v1 | Preserves historical preprocessing compatibility; correcting channel order or aspect handling requires a new protocol version |
 | D018 | 2026-08-25 | Confirmed | Derive dense and canonical development labels by exact label-name lookup in the frozen ontology | Removes dependence on legacy dense-label mappings that could have test-informed provenance |
 | D019 | 2026-08-31 | Confirmed | Implement M2 as an additive fingerprinted child of immutable M1, with one resumable end-to-end command per seed and a separate strict four-seed aggregate | Preserves `protocol_v1` fingerprints while making all five M2 producers per seed independently auditable and restart-safe |
+| D020 | 2026-09-01 | Confirmed | Preserve M3 target identity as `(row_uid, training_seed)` in the combined physical table, with no averaging, voting, or deduplication across seeds | Expert correctness and therefore target state can vary across seed realizations; a fixed-seed projection remains uniquely keyed by `row_uid` without changing `protocol_v1` |
+| D021 | 2026-09-01 | Confirmed | M3 owns targets, the stateless semantic feature builder and schema, prevalence, leakage audit, and lineage; M4 owns temperature fitting and calibrated router-dataset materialization | Prevents descriptive native-`T=1` probabilities from silently becoming primary router features and gives training and deployment one calibrated, state-free builder |
 
 ## Immediate next action
 
-Begin M3 from the validated, sealed M2 aggregates. Join development-train labels
-to the OOF table only for target construction, build the allow-listed
-deployment-safe router features, quantify rescue/harm target prevalence, and
-seal the router dataset and feature-schema manifest. Do not use
-development-validation labels to revise the feature schema, and do not open the
-cleaned test source.
+Begin M4 from the validated M3 bundle. Fit the 12 declared scalar temperatures
+(three expert modes by four seeds) from authoritative development-train OOF
+logits, derive calibrated probabilities, call the frozen M3 semantic builder,
+fit the declared transforms, materialize `router_dataset.parquet`, and train the
+predeclared router candidates. Keep development-validation outputs label-blind
+until candidate predictions are sealed, and do not open the cleaned-test
+source.
 
 ## Change log
 
@@ -1019,6 +1052,9 @@ cleaned test source.
 | 2026-08-25 | Completed M1: froze fold-contained B2 encoder adaptation with legacy BGR/439 preprocessing, sealed the label-blind test identity, materialized and validated grouped assignments, and added protocol/leakage/immutability enforcement |
 | 2026-08-31 | Implemented the additive M2 producer, per-seed runner, immutable checkpoint/output validation, four-seed aggregation, OOF report, and CPU synthetic acceptance tests |
 | 2026-08-31 | Completed M2 GPU execution for seeds 1–4 and sealed validated 13,512-row OOF and 3,288-row label-blind validation aggregates; all 20 producer checkpoints and the OOF report reproduce |
+| 2026-09-01 | Confirmed the seed-specific M3 target identity and moved all probability calibration, learned transforms, and `router_dataset.parquet` materialization to M4 |
+| 2026-09-01 | Began the additive M3 implementation: pure targets, stateless 30-feature contract, schema, prevalence, leakage audit, and immutable child-bundle workflow |
+| 2026-09-01 | Completed M3: validated exactly 16 train-OOF parents, sealed and revalidated 13,512 seed-specific targets plus schema/prevalence/leakage artifacts, reproduced all acceptance counts, and confirmed valid immutable reuse without calibration or a router dataset |
 
 ## Related pipeline files
 
