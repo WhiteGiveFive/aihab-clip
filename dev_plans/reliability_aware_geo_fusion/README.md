@@ -23,7 +23,7 @@ made, or a step-specific implementation record is created.
 | Primary baseline anchor | `raw_concat` |
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
-| Current method status | M1 protocol_v1, M2 expert outputs, and M3 seed-specific target/feature contract complete, sealed, and validated; M4 ready to begin |
+| Current method status | M1–M3 complete; M4 calibrated dataset preparation complete, sealed, and validated; router fitting and feasibility evaluation remain unfinished |
 | Last updated | 2026-09-01 |
 
 ## Contents
@@ -540,7 +540,11 @@ Acceptance criteria:
 
 ### M4 — Demonstrate a learnable router
 
-**Status:** Planned
+**Status:** In progress. Calibrated dataset preparation is complete; router
+fitting, selection, and feasibility evaluation remain unfinished. See
+[the dataset preparation record](04_router_dataset_preparation.md) for code,
+commands, schemas, temperatures, validation evidence, and the observed
+intermittent native-runtime caveat.
 
 The primary router is a four-state, L2-regularized multinomial logistic model.
 Its declared regularization grid is the only primary model hyperparameter
@@ -842,7 +846,11 @@ multimodal_artifacts/
 │       │   ├── target_prevalence.json
 │       │   ├── feature_leakage_audit.json
 │       │   └── manifest.json
-│       └── router_dataset.parquet               # M4
+│       ├── router_dataset.parquet               # M4 dataset preparation
+│       ├── router_dataset_audit.parquet
+│       ├── expert_temperatures.json
+│       ├── router_feature_transform.json
+│       └── router_dataset_manifest.json
 └── reports/cs/gse_100m_cleaned_test/geo_helpfulness/<evaluation_event_id>/
     └── locked_test/
 ```
@@ -982,7 +990,7 @@ Report overall and per habitat:
 | M1 Experimental protocol | Complete | Label-blind test identity, 4,200-row assignments, split balance, resolved config, protocol manifest, capability boundaries, and 43 focused tests validate | Preserve protocol_v1 immutably |
 | M2 OOF expert outputs | Complete | All 20 producers validate; sealed aggregates contain 13,512 OOF and 3,288 label-blind validation records; checkpoint replay and the OOF report reproduce | Preserve the immutable M2 artifacts and consume them through validated readers |
 | M3 Targets and router features | Complete | Sealed bundle contains 13,512 composite-key targets, the 30-feature/727-column future-transform schema, complete prevalence, a passing leakage audit, and immutable M1/M2/M3 lineage; validate and second build both return `reused_valid` | Preserve the bundle and consume it unchanged from M4 |
-| M4 Router feasibility | Planned | No router has been trained | Begin with output-only logistic router |
+| M4 Router feasibility | In progress: dataset preparation complete | Sealed 13,512-row dataset contains 727 model features per row, with 12 temperatures, four numeric transforms, and a calibrated audit table; independent validation and repeat build return `reused_valid`; 232 focused tests pass; no router has been trained | Consume the sealed dataset and fit the predeclared seed-specific logistic-router candidates |
 | M5 Test-time correction | Planned | No frozen score/threshold policy exists | Proceed only after the router passes the internal development gate |
 | M6 Gated residual fusion | Planned | Current model is naive concatenation | Proceed only after router go/no-go passes |
 | M7 Robust confirmation | Planned | Multi-seed OOF expert evidence exists, but the selected router and full stack have no matched multi-seed or independent confirmation | Run the eventual frozen stack across matched seeds and seek independent data |
@@ -999,6 +1007,7 @@ results, unresolved issues, and completion evidence for that step.
 | [`01_experimental_protocol.md`](01_experimental_protocol.md) | M1 | Complete |
 | [`02_oof_expert_outputs.md`](02_oof_expert_outputs.md) | M2 | Complete |
 | [`03_targets_and_features.md`](03_targets_and_features.md) | M3 | Complete |
+| [`04_router_dataset_preparation.md`](04_router_dataset_preparation.md) | M4 dataset subtask | Complete; native-runtime caveat documented |
 | `04_router_feasibility.md` | M4 | Not created |
 | `05_test_time_correction.md` | M5 | Not created |
 | `06_gated_fusion.md` | M6 | Not created |
@@ -1032,16 +1041,16 @@ corresponding record exists.
 | D019 | 2026-08-31 | Confirmed | Implement M2 as an additive fingerprinted child of immutable M1, with one resumable end-to-end command per seed and a separate strict four-seed aggregate | Preserves `protocol_v1` fingerprints while making all five M2 producers per seed independently auditable and restart-safe |
 | D020 | 2026-09-01 | Confirmed | Preserve M3 target identity as `(row_uid, training_seed)` in the combined physical table, with no averaging, voting, or deduplication across seeds | Expert correctness and therefore target state can vary across seed realizations; a fixed-seed projection remains uniquely keyed by `row_uid` without changing `protocol_v1` |
 | D021 | 2026-09-01 | Confirmed | M3 owns targets, the stateless semantic feature builder and schema, prevalence, leakage audit, and lineage; M4 owns temperature fitting and calibrated router-dataset materialization | Prevents descriptive native-`T=1` probabilities from silently becoming primary router features and gives training and deployment one calibrated, state-free builder |
+| D022 | 2026-09-08 | Confirmed | Materialize the M4 training matrix and a calibrated-probability/semantic-feature audit view; use equal-image-weight NLL for each seed/mode and freeze twelve temperatures plus four seed-local transforms | Makes the declared router inputs reproducible without seed averaging or validation/test fitting; preparation is sealed separately from subsequent router-training code |
 
 ## Immediate next action
 
-Begin M4 from the validated M3 bundle. Fit the 12 declared scalar temperatures
-(three expert modes by four seeds) from authoritative development-train OOF
-logits, derive calibrated probabilities, call the frozen M3 semantic builder,
-fit the declared transforms, materialize `router_dataset.parquet`, and train the
-predeclared router candidates. Keep development-validation outputs label-blind
-until candidate predictions are sealed, and do not open the cleaned-test
-source.
+Continue M4 from the validated, sealed router-dataset bundle. Fit one logistic
+router per training seed for each predeclared regularization candidate, using
+only that seed's OOF dataset projection. Reuse the twelve expert temperatures,
+four transforms, and unchanged M3 semantic builder; do not refit preparation
+state. Keep development-validation outputs label-blind until candidate
+predictions are sealed, and do not open the cleaned-test source.
 
 ## Change log
 
@@ -1055,6 +1064,7 @@ source.
 | 2026-09-01 | Confirmed the seed-specific M3 target identity and moved all probability calibration, learned transforms, and `router_dataset.parquet` materialization to M4 |
 | 2026-09-01 | Began the additive M3 implementation: pure targets, stateless 30-feature contract, schema, prevalence, leakage audit, and immutable child-bundle workflow |
 | 2026-09-01 | Completed M3: validated exactly 16 train-OOF parents, sealed and revalidated 13,512 seed-specific targets plus schema/prevalence/leakage artifacts, reproduced all acceptance counts, and confirmed valid immutable reuse without calibration or a router dataset |
+| 2026-09-08 | Completed the additive M4 dataset subtask: fitted twelve OOF temperatures and four transforms, sealed the 13,512×727 feature matrix plus audit/state artifacts, passed independent reconstruction and byte-preserving reuse, and passed 232 focused tests; documented intermittent native-runtime crashes; router fitting remains unfinished |
 
 ## Related pipeline files
 
