@@ -23,8 +23,8 @@ made, or a step-specific implementation record is created.
 | Primary baseline anchor | `raw_concat` |
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
-| Current method status | M1–M3 complete; M4 calibrated dataset preparation complete, sealed, and validated; router fitting and feasibility evaluation remain unfinished |
-| Last updated | 2026-09-01 |
+| Current method status | M1–M4 complete; primary M4 feasibility is no-go, with common C=0.1 and never-intervene fallback; ablations are inconclusive and are not promoted; M5/M6 not started |
+| Last updated | 2026-09-08 |
 
 ## Contents
 
@@ -540,8 +540,27 @@ Acceptance criteria:
 
 ### M4 — Demonstrate a learnable router
 
-**Status:** In progress. Calibrated dataset preparation is complete; router
-fitting, selection, and feasibility evaluation remain unfinished. See
+**Status:** Complete — internal feasibility **no-go**. Calibrated dataset preparation,
+primary/ablation candidate fitting, all 48 sealed validation prediction sets,
+regularization/threshold selection, comparator/subgroup/bootstrap evaluation,
+access audit, and frozen-state/selection-receipt publication are complete.
+The primary selects common `C=0.1`; none of its 919 threshold candidates meets
+all guardrails, so the frozen policy is `never_intervene`. The two predeclared
+ablations are inconclusive and are not promoted. M5/M6 have not started.
+See [the full M4 feasibility record](04_router_feasibility.md) for results,
+the additive receipt-schema lookup correction, fingerprints, verification,
+and the authoritative `run_multimodal_geo_helpfulness_m4_finalize.py` commands.
+
+All 48 candidates converged under the
+user-approved, versioned 5,000-iteration budget amendment; the original
+protocol configuration and partial 1,000-iteration run remain unchanged.
+All candidate validation predictions and OOF heuristic thresholds are sealed;
+the fixed primary seed-1, `C=0.01` preview scores 585/822 = 71.17% four-state
+accuracy. See [the validation-preview record](04_router_validation_preview.md)
+for access boundaries, the versioned storage-dtype scorer correction, and
+reproducible commands. See [the candidate-training record](04_router_candidate_training.md)
+for the declared study, amendment, trained artifacts, verification evidence,
+manual reproduction commands, and label-blind inference handoff. See
 [the dataset preparation record](04_router_dataset_preparation.md) for code,
 commands, schemas, temperatures, validation evidence, and the observed
 intermittent native-runtime caveat.
@@ -627,7 +646,7 @@ High AUROC alone is not sufficient.
 
 ### M5 — Implement selective test-time correction
 
-**Status:** Planned
+**Status:** Deferred after the completed M4 primary no-go; not started.
 
 Protocol v1 freezes the complete `router_frozen_state` and authorizes only the
 hard-override policy before test inference:
@@ -655,7 +674,7 @@ Acceptance criteria:
 
 ### M6 — Implement gated geo-residual fusion
 
-**Status:** Planned
+**Status:** Deferred after the completed M4 primary no-go; not started.
 
 Proposed training stages:
 
@@ -763,7 +782,9 @@ Acceptance criteria:
 
 ### M8 — Integration and reproducibility
 
-**Status:** Planned
+**Status:** Partially delivered through M4: milestone runners, immutable
+artifacts, reproduction checks and focused tests are implemented. Broader
+method integration remains deferred.
 
 Deliverables:
 
@@ -990,11 +1011,11 @@ Report overall and per habitat:
 | M1 Experimental protocol | Complete | Label-blind test identity, 4,200-row assignments, split balance, resolved config, protocol manifest, capability boundaries, and 43 focused tests validate | Preserve protocol_v1 immutably |
 | M2 OOF expert outputs | Complete | All 20 producers validate; sealed aggregates contain 13,512 OOF and 3,288 label-blind validation records; checkpoint replay and the OOF report reproduce | Preserve the immutable M2 artifacts and consume them through validated readers |
 | M3 Targets and router features | Complete | Sealed bundle contains 13,512 composite-key targets, the 30-feature/727-column future-transform schema, complete prevalence, a passing leakage audit, and immutable M1/M2/M3 lineage; validate and second build both return `reused_valid` | Preserve the bundle and consume it unchanged from M4 |
-| M4 Router feasibility | In progress: dataset preparation complete | Sealed 13,512-row dataset contains 727 model features per row, with 12 temperatures, four numeric transforms, and a calibrated audit table; independent validation and repeat build return `reused_valid`; 232 focused tests pass; no router has been trained | Consume the sealed dataset and fit the predeclared seed-specific logistic-router candidates |
-| M5 Test-time correction | Planned | No frozen score/threshold policy exists | Proceed only after the router passes the internal development gate |
-| M6 Gated residual fusion | Planned | Current model is naive concatenation | Proceed only after router go/no-go passes |
-| M7 Robust confirmation | Planned | Multi-seed OOF expert evidence exists, but the selected router and full stack have no matched multi-seed or independent confirmation | Run the eventual frozen stack across matched seeds and seek independent data |
-| M8 Integration and reproducibility | Planned | No new-method runner or tests | Integrate alongside each implementation milestone |
+| M4 Router feasibility | Complete: no-go | Common C=0.1; 0/919 feasible primary thresholds, never-intervene fallback; both ablations inconclusive; 33-file result bundle and corrected receipt sealed; independent validation/reuse and 751 focused tests pass | Preserve the result; any revised scientific study needs a new declared protocol |
+| M5 Test-time correction | Deferred after no-go | Frozen primary policy exists but makes no interventions and fails the development gate | Do not proceed under this failed gate |
+| M6 Gated residual fusion | Deferred after no-go | The primary router does not meet the declared feasibility criteria | Do not proceed under this failed gate |
+| M7 Robust confirmation | Planned | Selected routers have matched multi-seed internal holdout evidence, not independent confirmation | Seek independent data; do not reinterpret selected validation as confirmation |
+| M8 Integration and reproducibility | Partially delivered through M4 | Reproducible milestone runners, immutable artifacts, and 751 focused regression cases exist | Preserve M4 integration; broader method integration remains deferred |
 
 ## Step-specific development records
 
@@ -1008,7 +1029,10 @@ results, unresolved issues, and completion evidence for that step.
 | [`02_oof_expert_outputs.md`](02_oof_expert_outputs.md) | M2 | Complete |
 | [`03_targets_and_features.md`](03_targets_and_features.md) | M3 | Complete |
 | [`04_router_dataset_preparation.md`](04_router_dataset_preparation.md) | M4 dataset subtask | Complete; native-runtime caveat documented |
-| `04_router_feasibility.md` | M4 | Not created |
+| [`04_router_candidate_training.md`](04_router_candidate_training.md) | M4 candidate-fitting subtask | Complete; 48 converged candidates under the approved v2 iteration budget |
+| [`04_router_validation_preview.md`](04_router_validation_preview.md) | M4 pre-label preparation and fixed preview | Complete; subsequent full selection/evaluation is recorded below |
+| [`04_router_feasibility.md`](04_router_feasibility.md) | M4 | Complete: primary no-go, ablations inconclusive, frozen receipt and reproducible validation |
+| [`05_legacy_router_transfer.md`](05_legacy_router_transfer.md) | Separate exploratory legacy-expert transfer; not M5 | Complete: both fixed-final and test-selected oracle checkpoints evaluated with frozen M4 policies; independent validation/reuse pass; M4 no-go unchanged |
 | `05_test_time_correction.md` | M5 | Not created |
 | `06_gated_fusion.md` | M6 | Not created |
 | `07_evaluation_and_confirmation.md` | M7 | Not created |
@@ -1042,15 +1066,17 @@ corresponding record exists.
 | D020 | 2026-09-01 | Confirmed | Preserve M3 target identity as `(row_uid, training_seed)` in the combined physical table, with no averaging, voting, or deduplication across seeds | Expert correctness and therefore target state can vary across seed realizations; a fixed-seed projection remains uniquely keyed by `row_uid` without changing `protocol_v1` |
 | D021 | 2026-09-01 | Confirmed | M3 owns targets, the stateless semantic feature builder and schema, prevalence, leakage audit, and lineage; M4 owns temperature fitting and calibrated router-dataset materialization | Prevents descriptive native-`T=1` probabilities from silently becoming primary router features and gives training and deployment one calibrated, state-free builder |
 | D022 | 2026-09-08 | Confirmed | Materialize the M4 training matrix and a calibrated-probability/semantic-feature audit view; use equal-image-weight NLL for each seed/mode and freeze twelve temperatures plus four seed-local transforms | Makes the declared router inputs reproducible without seed averaging or validation/test fitting; preparation is sealed separately from subsequent router-training code |
+| D023 | 2026-09-08 | Recorded outcome | Complete M4 with the primary no-go result and never-intervene fallback; preserve both inconclusive ablations without promotion | No primary threshold meets all support/harm constraints; neither ablation beats every predeclared heuristic; the failed gate does not authorize M5/M6 |
+| D024 | 2026-09-08 | Implementation correction | Preserve the predeclared scorer and all 31 computed result artifacts; add a versioned finalizer correcting only the receipt-schema configuration path | The frozen schema is under `schemas`, not `artifact_contract`; no scientific setting, model selection, or previous result byte changes |
 
 ## Immediate next action
 
-Continue M4 from the validated, sealed router-dataset bundle. Fit one logistic
-router per training seed for each predeclared regularization candidate, using
-only that seed's OOF dataset projection. Reuse the twelve expert temperatures,
-four transforms, and unchanged M3 semantic builder; do not refit preparation
-state. Keep development-validation outputs label-blind until candidate
-predictions are sealed, and do not open the cleaned-test source.
+Review the completed [M4 feasibility result](04_router_feasibility.md). The
+current primary method has a frozen no-go outcome; do not proceed to M5/M6,
+promote an ablation, relax guardrails, or retune on this same holdout under
+protocol v1. Preserve all selected states, thresholds, reports and the receipt.
+Any revised scientific study requires an explicitly declared new protocol and
+appropriate evidence boundaries. The cleaned-test source remains unopened.
 
 ## Change log
 
@@ -1065,6 +1091,9 @@ predictions are sealed, and do not open the cleaned-test source.
 | 2026-09-01 | Began the additive M3 implementation: pure targets, stateless 30-feature contract, schema, prevalence, leakage audit, and immutable child-bundle workflow |
 | 2026-09-01 | Completed M3: validated exactly 16 train-OOF parents, sealed and revalidated 13,512 seed-specific targets plus schema/prevalence/leakage artifacts, reproduced all acceptance counts, and confirmed valid immutable reuse without calibration or a router dataset |
 | 2026-09-08 | Completed the additive M4 dataset subtask: fitted twelve OOF temperatures and four transforms, sealed the 13,512×727 feature matrix plus audit/state artifacts, passed independent reconstruction and byte-preserving reuse, and passed 232 focused tests; documented intermittent native-runtime crashes; router fitting remains unfinished |
+| 2026-09-08 | Completed 48 primary/ablation candidate fits under the approved versioned 5,000-iteration budget; preserved the original configuration and partial v1 run; reconstruction, explicit refitting, and immutable reuse pass |
+| 2026-09-08 | Sealed all 48 label-blind candidate validation prediction sets and OOF heuristic thresholds; scored only fixed primary seed-1/C=0.01 at 585/822 = 71.17%; preserved the seal through an additive string-storage scorer correction; 564 focused tests pass; regularization/threshold selection and full M4 feasibility remain outstanding |
+| 2026-09-08 | Completed full M4 selection, comparator/subgroup/bootstrap analysis and frozen policy/receipt: primary C=0.1, never-intervene, no-go; ablations inconclusive. An additive receipt-path correction preserved all prior code/results. Independent validation, byte-preserving reuse, strict post-receipt access checks and 751 focused tests pass; M5/M6 remain deferred |
 
 ## Related pipeline files
 
