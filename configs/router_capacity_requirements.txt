@@ -1,0 +1,2 @@
+# CPU-only wheel for Linux x86_64; preserves the existing habcls dependencies.
+xgboost-cpu==2.1.4 --hash=sha256:ac3281127b2f77f6c62e8699216b0974a1c4a442ee6162eb94256c01df7cd1f5

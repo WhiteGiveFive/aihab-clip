@@ -24,7 +24,7 @@ made, or a step-specific implementation record is created.
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
 | Current method status | M1–M4 complete; primary M4 feasibility is no-go, with common C=0.1 and never-intervene fallback; ablations are inconclusive and are not promoted; M5/M6 not started |
-| Last updated | 2026-09-08 |
+| Last updated | 2026-09-09 |
 
 ## Contents
 
@@ -1012,6 +1012,9 @@ Report overall and per habitat:
 | M2 OOF expert outputs | Complete | All 20 producers validate; sealed aggregates contain 13,512 OOF and 3,288 label-blind validation records; checkpoint replay and the OOF report reproduce | Preserve the immutable M2 artifacts and consume them through validated readers |
 | M3 Targets and router features | Complete | Sealed bundle contains 13,512 composite-key targets, the 30-feature/727-column future-transform schema, complete prevalence, a passing leakage audit, and immutable M1/M2/M3 lineage; validate and second build both return `reused_valid` | Preserve the bundle and consume it unchanged from M4 |
 | M4 Router feasibility | Complete: no-go | Common C=0.1; 0/919 feasible primary thresholds, never-intervene fallback; both ablations inconclusive; 33-file result bundle and corrected receipt sealed; independent validation/reuse and 751 focused tests pass | Preserve the result; any revised scientific study needs a new declared protocol |
+| Exploratory router capacity v1 | Complete; not a replacement M4 gate | LR, shallow XGB, and regularized RF compared across all 727/79/25 feature sets; 144 seed cases sealed; best routed validation point gain +0.729927 pp (RF/25), with conditional uncertainty and no clear superiority over the strongest heuristic; 839 focused tests pass | Preserve this development-only exploration; original M4 no-go and M5/M6 deferral remain unchanged |
+| Exploratory router MLP v1 | Complete; not a replacement M4 gate | Four architectures across 727/79/25 features and four seeds: 48 fits; all variants select [32]; full/no-pairs fall back to no intervention, numeric gains +0.425791 pp with a CI spanning zero; 1,038 focused tests pass | Preserve the fixed-epoch negative/exploratory result and versioned replay correction; original M4 no-go and M5/M6 deferral remain unchanged |
+| Exploratory legacy capacity transfer v1 | Complete; not M5 or independent confirmation | Frozen RF/XGB/MLP across all three feature variants/four seeds applied to both legacy checkpoint families; 36 states, 72 application cases, and 36 output files sealed; all new gain intervals versus raw include/touch zero; 1,304 focused tests pass | Preserve the descriptive results, append-only test event, and all prior states; no retuning, policy promotion, or change to M4 no-go |
 | M5 Test-time correction | Deferred after no-go | Frozen primary policy exists but makes no interventions and fails the development gate | Do not proceed under this failed gate |
 | M6 Gated residual fusion | Deferred after no-go | The primary router does not meet the declared feasibility criteria | Do not proceed under this failed gate |
 | M7 Robust confirmation | Planned | Selected routers have matched multi-seed internal holdout evidence, not independent confirmation | Seek independent data; do not reinterpret selected validation as confirmation |
@@ -1033,6 +1036,9 @@ results, unresolved issues, and completion evidence for that step.
 | [`04_router_validation_preview.md`](04_router_validation_preview.md) | M4 pre-label preparation and fixed preview | Complete; subsequent full selection/evaluation is recorded below |
 | [`04_router_feasibility.md`](04_router_feasibility.md) | M4 | Complete: primary no-go, ablations inconclusive, frozen receipt and reproducible validation |
 | [`05_legacy_router_transfer.md`](05_legacy_router_transfer.md) | Separate exploratory legacy-expert transfer; not M5 | Complete: both fixed-final and test-selected oracle checkpoints evaluated with frozen M4 policies; independent validation/reuse pass; M4 no-go unchanged |
+| [`06_router_capacity_exploration.md`](06_router_capacity_exploration.md) | Separate development-only model-capacity exploration; not M5/M6 | Complete: all three learners and all three feature variants evaluated; nine policies sealed; independent validation, byte-preserving reuse, and original-parent checks pass |
+| [`07_router_mlp_exploration.md`](07_router_mlp_exploration.md) | Separate development-only MLP architecture exploration; not M7 confirmation | Complete: 48 CPU fits and three selected policies; epoch histories, independent repeat fits, score replay and immutable reuse verified; all original artifacts preserved through an additive column-order replay correction |
+| [`08_legacy_capacity_transfer.md`](08_legacy_capacity_transfer.md) | Separate frozen RF/XGB/MLP legacy-expert transfer; not M5 | Complete: both checkpoint families and all ablations evaluated without fitting/selection; independent prediction/metric audits, reconstruction, immutable reuse, and 931-parent lineage checks pass |
 | `05_test_time_correction.md` | M5 | Not created |
 | `06_gated_fusion.md` | M6 | Not created |
 | `07_evaluation_and_confirmation.md` | M7 | Not created |
@@ -1068,6 +1074,10 @@ corresponding record exists.
 | D022 | 2026-09-08 | Confirmed | Materialize the M4 training matrix and a calibrated-probability/semantic-feature audit view; use equal-image-weight NLL for each seed/mode and freeze twelve temperatures plus four seed-local transforms | Makes the declared router inputs reproducible without seed averaging or validation/test fitting; preparation is sealed separately from subsequent router-training code |
 | D023 | 2026-09-08 | Recorded outcome | Complete M4 with the primary no-go result and never-intervene fallback; preserve both inconclusive ablations without promotion | No primary threshold meets all support/harm constraints; neither ablation beats every predeclared heuristic; the failed gate does not authorize M5/M6 |
 | D024 | 2026-09-08 | Implementation correction | Preserve the predeclared scorer and all 31 computed result artifacts; add a versioned finalizer correcting only the receipt-schema configuration path | The frozen schema is under `schemas`, not `artifact_contract`; no scientific setting, model selection, or previous result byte changes |
+| D025 | 2026-09-09 | Recorded exploratory outcome | Predeclare and complete `router_capacity_v1`: four settings each for LR, RF, and XGB on all three frozen feature variants; select separately on reused development validation | Isolates learner capacity with unchanged expert inputs and preprocessing; RF provides modest gains, not independent confirmation or a replacement M4 go decision; no cleaned-test access or policy promotion |
+| D026 | 2026-09-09 | Recorded exploratory outcome | Complete the agreed MLP grid [32], [64], [32,16], [64,32] across all three feature variants/four seeds, with fixed 300-epoch training and no validation early stopping | Greater capacity lowers training NLL but worsens validation NLL; [32]/numeric gives +0.425791 pp habitat gain with conditional CI spanning zero, below existing baseline point estimates; no promotion or test access |
+| D027 | 2026-09-09 | Implementation correction | Preserve all 148 sealed MLP source files; add `router_mlp_v1_replay_v2` with hash-bound support for the two known training-history column orders and unchanged strict numerical checks | Canonical JSON key sorting changes reconstruction order, not values; all scoring rules and fitted states remain unchanged, with no refitting or original-file rewrite |
+| D028 | 2026-09-09 | Recorded exploratory outcome | Apply the nine sealed RF/XGB/MLP policies, including both feature ablations, to the same two legacy cleaned-test expert families as the prior LR transfer | Separate apply-only study with a new registered test event; RF point gains are modest, MLP/numeric gains smaller, and every new gain interval versus raw includes/touches zero; preserve historical-test-bias disclosures and original M4 no-go |
 
 ## Immediate next action
 
@@ -1076,7 +1086,15 @@ current primary method has a frozen no-go outcome; do not proceed to M5/M6,
 promote an ablation, relax guardrails, or retune on this same holdout under
 protocol v1. Preserve all selected states, thresholds, reports and the receipt.
 Any revised scientific study requires an explicitly declared new protocol and
-appropriate evidence boundaries. The cleaned-test source remains unopened.
+appropriate evidence boundaries. The completed [capacity exploration](06_router_capacity_exploration.md)
+and [MLP architecture exploration](07_router_mlp_exploration.md) are separately
+declared, development-only comparisons and do not change that gate. Neither
+performs cleaned-test or legacy-transfer-output evaluation; the earlier
+[legacy transfer experiment](05_legacy_router_transfer.md) is recorded independently.
+The subsequent [frozen RF/XGB/MLP legacy transfer](08_legacy_capacity_transfer.md)
+is also complete as a separate, explicitly authorized exploratory study. It
+transfers all selected states and thresholds unchanged, appends a new test
+event, and does not supply independent confirmation or authorize retuning.
 
 ## Change log
 
@@ -1094,6 +1112,9 @@ appropriate evidence boundaries. The cleaned-test source remains unopened.
 | 2026-09-08 | Completed 48 primary/ablation candidate fits under the approved versioned 5,000-iteration budget; preserved the original configuration and partial v1 run; reconstruction, explicit refitting, and immutable reuse pass |
 | 2026-09-08 | Sealed all 48 label-blind candidate validation prediction sets and OOF heuristic thresholds; scored only fixed primary seed-1/C=0.01 at 585/822 = 71.17%; preserved the seal through an additive string-storage scorer correction; 564 focused tests pass; regularization/threshold selection and full M4 feasibility remain outstanding |
 | 2026-09-08 | Completed full M4 selection, comparator/subgroup/bootstrap analysis and frozen policy/receipt: primary C=0.1, never-intervene, no-go; ablations inconclusive. An additive receipt-path correction preserved all prior code/results. Independent validation, byte-preserving reuse, strict post-receipt access checks and 751 focused tests pass; M5/M6 remain deferred |
+| 2026-09-09 | Completed the separately declared development-only capacity round: reused 48 LR candidates and fitted 48 RF plus 48 XGB candidates across 727/79/25 features; sealed all predictions before scoring; selected nine policies; independent reconstruction, byte/mtime-preserving reuse, 198-parent hash audit, and 839 focused tests pass. RF gains are modest and exploratory; original M4 no-go remains unchanged |
+| 2026-09-09 | Completed all 48 declared MLP fits on CPU in 279.14 s; selected [32] for each feature variant; numeric-only correction gains +0.425791 pp with conditional CI including zero. Preserved all sealed files through additive curve-order replay correction; independent validation, exact repeat fits, byte/mtime-preserving reuse, 810-file lineage audit, and 1,038 focused tests pass. Original M4 no-go remains unchanged |
+| 2026-09-09 | Completed the frozen legacy transfer for all nine RF/XGB/MLP policies and both checkpoint families in 95.56 s, with no fitting/recalibration/threshold selection. Independent validation and repeat-build reuse pass; all 36 output files and four predecessor bundles preserve bytes/mtimes, all 931 parent hashes validate, and 1,304 focused tests pass. RF fixed-final habitat gains are +0.334 to +0.353 pp, below the prior LR/no-pairs point gain; all new gain intervals versus raw include/touch zero. M4 no-go and M5/M6 deferral remain unchanged |
 
 ## Related pipeline files
 

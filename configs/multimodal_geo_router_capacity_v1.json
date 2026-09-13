@@ -1,0 +1,558 @@
+{
+  "schema_version": "geo_helpfulness.router_capacity_config.v1",
+  "study_id": "router_capacity_v1",
+  "configurations": [
+    {
+      "config_id": "lr__primary_full727__C_0p01",
+      "family": "lr",
+      "variant": "primary_full727",
+      "parameters": {
+        "C": 0.01
+      }
+    },
+    {
+      "config_id": "lr__primary_full727__C_0p1",
+      "family": "lr",
+      "variant": "primary_full727",
+      "parameters": {
+        "C": 0.1
+      }
+    },
+    {
+      "config_id": "lr__primary_full727__C_1",
+      "family": "lr",
+      "variant": "primary_full727",
+      "parameters": {
+        "C": 1
+      }
+    },
+    {
+      "config_id": "lr__primary_full727__C_10",
+      "family": "lr",
+      "variant": "primary_full727",
+      "parameters": {
+        "C": 10
+      }
+    },
+    {
+      "config_id": "lr__ablation_no_pairs79__C_0p01",
+      "family": "lr",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "C": 0.01
+      }
+    },
+    {
+      "config_id": "lr__ablation_no_pairs79__C_0p1",
+      "family": "lr",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "C": 0.1
+      }
+    },
+    {
+      "config_id": "lr__ablation_no_pairs79__C_1",
+      "family": "lr",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "C": 1
+      }
+    },
+    {
+      "config_id": "lr__ablation_no_pairs79__C_10",
+      "family": "lr",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "C": 10
+      }
+    },
+    {
+      "config_id": "lr__ablation_numeric25__C_0p01",
+      "family": "lr",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "C": 0.01
+      }
+    },
+    {
+      "config_id": "lr__ablation_numeric25__C_0p1",
+      "family": "lr",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "C": 0.1
+      }
+    },
+    {
+      "config_id": "lr__ablation_numeric25__C_1",
+      "family": "lr",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "C": 1
+      }
+    },
+    {
+      "config_id": "lr__ablation_numeric25__C_10",
+      "family": "lr",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "C": 10
+      }
+    },
+    {
+      "config_id": "rf__primary_full727__d4_leaf20",
+      "family": "rf",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 4,
+        "min_samples_leaf": 20
+      }
+    },
+    {
+      "config_id": "rf__primary_full727__d4_leaf5",
+      "family": "rf",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 4,
+        "min_samples_leaf": 5
+      }
+    },
+    {
+      "config_id": "rf__primary_full727__d8_leaf20",
+      "family": "rf",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 8,
+        "min_samples_leaf": 20
+      }
+    },
+    {
+      "config_id": "rf__primary_full727__d8_leaf5",
+      "family": "rf",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 8,
+        "min_samples_leaf": 5
+      }
+    },
+    {
+      "config_id": "rf__ablation_no_pairs79__d4_leaf20",
+      "family": "rf",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 4,
+        "min_samples_leaf": 20
+      }
+    },
+    {
+      "config_id": "rf__ablation_no_pairs79__d4_leaf5",
+      "family": "rf",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 4,
+        "min_samples_leaf": 5
+      }
+    },
+    {
+      "config_id": "rf__ablation_no_pairs79__d8_leaf20",
+      "family": "rf",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 8,
+        "min_samples_leaf": 20
+      }
+    },
+    {
+      "config_id": "rf__ablation_no_pairs79__d8_leaf5",
+      "family": "rf",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 8,
+        "min_samples_leaf": 5
+      }
+    },
+    {
+      "config_id": "rf__ablation_numeric25__d4_leaf20",
+      "family": "rf",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 4,
+        "min_samples_leaf": 20
+      }
+    },
+    {
+      "config_id": "rf__ablation_numeric25__d4_leaf5",
+      "family": "rf",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 4,
+        "min_samples_leaf": 5
+      }
+    },
+    {
+      "config_id": "rf__ablation_numeric25__d8_leaf20",
+      "family": "rf",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 8,
+        "min_samples_leaf": 20
+      }
+    },
+    {
+      "config_id": "rf__ablation_numeric25__d8_leaf5",
+      "family": "rf",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 500,
+        "max_features": 0.5,
+        "bootstrap": true,
+        "criterion": "log_loss",
+        "class_weight": null,
+        "n_jobs": 1,
+        "oob_score": false,
+        "max_samples": null,
+        "max_depth": 8,
+        "min_samples_leaf": 5
+      }
+    },
+    {
+      "config_id": "xgb__primary_full727__d2_lambda1",
+      "family": "xgb",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 2,
+        "reg_lambda": 1
+      }
+    },
+    {
+      "config_id": "xgb__primary_full727__d3_lambda1",
+      "family": "xgb",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 3,
+        "reg_lambda": 1
+      }
+    },
+    {
+      "config_id": "xgb__primary_full727__d3_lambda10",
+      "family": "xgb",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 3,
+        "reg_lambda": 10
+      }
+    },
+    {
+      "config_id": "xgb__primary_full727__d4_lambda10",
+      "family": "xgb",
+      "variant": "primary_full727",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 4,
+        "reg_lambda": 10
+      }
+    },
+    {
+      "config_id": "xgb__ablation_no_pairs79__d2_lambda1",
+      "family": "xgb",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 2,
+        "reg_lambda": 1
+      }
+    },
+    {
+      "config_id": "xgb__ablation_no_pairs79__d3_lambda1",
+      "family": "xgb",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 3,
+        "reg_lambda": 1
+      }
+    },
+    {
+      "config_id": "xgb__ablation_no_pairs79__d3_lambda10",
+      "family": "xgb",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 3,
+        "reg_lambda": 10
+      }
+    },
+    {
+      "config_id": "xgb__ablation_no_pairs79__d4_lambda10",
+      "family": "xgb",
+      "variant": "ablation_no_pairs79",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 4,
+        "reg_lambda": 10
+      }
+    },
+    {
+      "config_id": "xgb__ablation_numeric25__d2_lambda1",
+      "family": "xgb",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 2,
+        "reg_lambda": 1
+      }
+    },
+    {
+      "config_id": "xgb__ablation_numeric25__d3_lambda1",
+      "family": "xgb",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 3,
+        "reg_lambda": 1
+      }
+    },
+    {
+      "config_id": "xgb__ablation_numeric25__d3_lambda10",
+      "family": "xgb",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 3,
+        "reg_lambda": 10
+      }
+    },
+    {
+      "config_id": "xgb__ablation_numeric25__d4_lambda10",
+      "family": "xgb",
+      "variant": "ablation_numeric25",
+      "parameters": {
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "min_child_weight": 10,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0,
+        "max_bin": 256,
+        "tree_method": "hist",
+        "objective": "multi:softprob",
+        "num_class": 4,
+        "base_score": 0.5,
+        "n_jobs": 1,
+        "max_depth": 4,
+        "reg_lambda": 10
+      }
+    }
+  ]
+}

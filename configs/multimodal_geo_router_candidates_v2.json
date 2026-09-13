@@ -1,0 +1,49 @@
+{
+  "schema_version": "geo_helpfulness.router_candidate_study_config.v2",
+  "study_id": "router_candidates_v2",
+  "parent_protocol_id": "protocol_v1",
+  "optimizer_budget_amendment": {
+    "approved_by": "user",
+    "approval_date": "2026-09-08",
+    "previous_study_id": "router_candidates_v1",
+    "previous_study_spec_sha256": "26f0d541bf51ef46539ff8b80bd315e7e4fcf67687c6c2cc449ca3ae572f7453",
+    "parameter": "max_iter",
+    "previous_value": 1000,
+    "approved_value": 5000,
+    "scope": "all_48_candidates",
+    "all_other_settings_unchanged": true
+  },
+  "primary_variant": "primary_full727",
+  "variants": [
+    {"id": "primary_full727", "role": "primary", "feature_count": 727, "semantic_feature_count": 30},
+    {"id": "ablation_no_pairs79", "role": "secondary_ablation", "feature_count": 79, "semantic_feature_count": 28},
+    {"id": "ablation_numeric25", "role": "secondary_ablation", "feature_count": 25, "semantic_feature_count": 25}
+  ],
+  "training_seeds": [1, 2, 3, 4],
+  "regularization_grid_C": [0.01, 0.1, 1.0, 10.0],
+  "fit_role": "development_train_oof",
+  "sample_weight": null,
+  "reuse_frozen_preprocessing": true,
+  "feature_selection": "fixed_column_views_only",
+  "primary_schema_unchanged": true,
+  "automatic_ablation_promotion": false,
+  "later_selection": {
+    "one_common_C_per_variant": true,
+    "metric": "four_state_log_loss",
+    "seed_aggregation": "arithmetic_mean",
+    "C_tie_break": "smallest_C",
+    "threshold_selection": "same_frozen_protocol_v1_utility_and_guardrails_per_variant",
+    "validation_predictions_sealed_before_label_scoring": true,
+    "test_data_allowed": false
+  },
+  "execution": {
+    "device": "cpu",
+    "candidate_parallelism": 1,
+    "native_thread_limit": 1,
+    "convergence_failure": "hard_reject_no_automatic_relaxation",
+    "coefficient_reproduction_atol": 1e-10,
+    "coefficient_reproduction_rtol": 1e-10,
+    "probability_reproduction_atol": 1e-12,
+    "probability_reproduction_rtol": 1e-12
+  }
+}
