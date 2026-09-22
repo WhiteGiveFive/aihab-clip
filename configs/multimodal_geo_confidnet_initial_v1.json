@@ -1,0 +1,53 @@
+{
+  "schema_version": "geo_helpfulness.confidnet_initial_config.v1",
+  "study_id": "confidnet_initial_v1",
+  "training_seeds": [1, 2, 3, 4],
+  "expert_modes": ["image", "geo", "raw"],
+  "expert_producer": "development_train_to_validation",
+  "expert_fit_role": "development_train",
+  "confidence_fit_role": "development_train",
+  "evaluation_role": "development_validation",
+  "target": "native_t1_true_class_probability",
+  "feature": "paired_frozen_expert_penultimate_relu",
+  "input_dim": 256,
+  "expert_updates": false,
+  "confidence_encoder_finetuning": false,
+  "prediction_arithmetic": "portable_json_weights_float64",
+  "parameters": {
+    "hidden_widths": [128, 128, 128, 128],
+    "epochs": 100,
+    "batch_size": 128,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "optimizer": "adam",
+    "betas": [0.9, 0.999],
+    "eps": 1e-8,
+    "device": "cpu",
+    "dtype": "float32",
+    "dropout": 0.0,
+    "normalization": "none",
+    "checkpoint": "final_epoch",
+    "selection": "none"
+  },
+  "policies": [
+    "fusion",
+    "always_geo_disagreement",
+    "mcp_difference_positive",
+    "tcp_difference_positive"
+  ],
+  "policy_threshold": 0.0,
+  "policy_comparison": "strict_greater_than",
+  "policy_requires_geo_fusion_disagreement": true,
+  "threshold_selection": false,
+  "bootstrap": {
+    "unit": "whole_plot_all_seed_realizations",
+    "resamples": 2000,
+    "seed": 20260826,
+    "interval": "percentile_95",
+    "stratified": false
+  },
+  "evidence_status": "exploratory_reused_development_validation",
+  "locked_test_access": false,
+  "augmented_router_training": false,
+  "source_paper": "https://proceedings.neurips.cc/paper_files/paper/2019/file/757f843a169cc678064d9530d12a1881-Paper.pdf"
+}

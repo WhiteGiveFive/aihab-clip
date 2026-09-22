@@ -24,7 +24,7 @@ made, or a step-specific implementation record is created.
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
 | Current method status | M1–M4 complete; primary M4 feasibility is no-go, with common C=0.1 and never-intervene fallback; ablations are inconclusive and are not promoted; M5/M6 not started |
-| Last updated | 2026-09-09 |
+| Last updated | 2026-09-22 |
 
 ## Contents
 
@@ -187,11 +187,22 @@ Later ablations may add:
 
 - image and geo embedding-density or out-of-distribution scores;
 - compact projected embeddings;
+- learned TCP estimates from frozen-expert hidden representations (the separately
+  declared [initial ConfidNet study](12_confidnet_initial_experiment.md) evaluates
+  confidence estimation and a direct comparator; the subsequently approved
+  [OOF ConfidNet study](13_confidnet_oof_proposal.md) compares 25 numerical
+  summaries against those same summaries plus three estimated TCPs);
 - image prediction stability under test-time augmentation or ensembling.
 
 The router must never receive ground truth, correctness, true-class probability,
 or true-class NLL. Those quantities may construct targets or diagnostics during
 development, but they do not exist at deployment.
+
+An estimated TCP produced by a fitted confidence network is deployment-available
+and differs from the label-derived true TCP target. The initial feature allow-list
+remains unchanged. The separate OOF study explicitly uses estimates that are
+OOF for the experts and in-sample for ConfidNet when fitting the router; it does
+not claim fully cross-fitted router inputs.
 
 ## Scope and non-goals
 
@@ -1015,7 +1026,12 @@ Report overall and per habitat:
 | Exploratory router capacity v1 | Complete; not a replacement M4 gate | LR, shallow XGB, and regularized RF compared across all 727/79/25 feature sets; 144 seed cases sealed; best routed validation point gain +0.729927 pp (RF/25), with conditional uncertainty and no clear superiority over the strongest heuristic; 839 focused tests pass | Preserve this development-only exploration; original M4 no-go and M5/M6 deferral remain unchanged |
 | Exploratory router MLP v1 | Complete; not a replacement M4 gate | Four architectures across 727/79/25 features and four seeds: 48 fits; all variants select [32]; full/no-pairs fall back to no intervention, numeric gains +0.425791 pp with a CI spanning zero; 1,038 focused tests pass | Preserve the fixed-epoch negative/exploratory result and versioned replay correction; original M4 no-go and M5/M6 deferral remain unchanged |
 | Exploratory legacy capacity transfer v1 | Complete; not M5 or independent confirmation | Frozen RF/XGB/MLP across all three feature variants/four seeds applied to both legacy checkpoint families; 36 states, 72 application cases, and 36 output files sealed; all new gain intervals versus raw include/touch zero; 1,304 focused tests pass | Preserve the descriptive results, append-only test event, and all prior states; no retuning, policy promotion, or change to M4 no-go |
+| Exploratory relaxed LR guardrails v1 | Complete; not a replacement M4 gate | 27 development-selected policies across all LR feature variants, plot minima 20/10/none and harm caps 0.5/0.7/0.9; both legacy test families scored; 40 artifacts, independent validation/reuse, and 1,519 focused tests verified | Preserve the sensitivity results: plot relaxation changes nothing, 0.7/0.9 select identical policies with larger but uncertain fixed-final point gains; no test-based promotion or change to M4 no-go |
+| Exploratory relaxed RF guardrails v1 | Complete; not a replacement M4 gate | Same 27-policy grid across all three frozen RF variants and both legacy test families; 40 artifacts, 216 new application cases, independent metric/bootstrap/lineage audits, byte/mtime-preserving reuse and 1,784 focused tests verified | Preserve all policies: plot relaxation changes nothing; harm relaxation raises fixed-final top-1 point gains but lowers top-3; all gain and paired intervals include zero; no test-based promotion or M4 gate revision |
+| Exploratory relaxed margin guardrail v1 | Complete; not a replacement M4 gate | One H≤0.7R margin threshold selected on training OOF only, retaining 1% coverage and 20 plots; cleaned-test accuracy 74.387528% versus 74.480327% for the original rule, weighted F1 declines; 25 sealed artifacts, independent audits, immutable reuse and 382 focused tests pass | Preserve the exploratory negative result; no policy promotion or change to M4 no-go |
 | M5 Test-time correction | Deferred after no-go | Frozen primary policy exists but makes no interventions and fails the development gate | Do not proceed under this failed gate |
+| Initial ConfidNet study | Complete; separate development experiment, negative fixed-recipe result | Twelve same-training-set confidence fits; image/fusion have zero training errors and their confidence heads saturate near one; failure AP/AUC below MCP in every expert/seed; TCP comparator makes zero interventions, leaving accuracy at 71.0462% | Preserve the result; diagnose training saturation before a separately declared follow-up; no augmented-router training or cleaned-test access |
+| OOF-supervised ConfidNet study | Complete; negative matched-router result | Twelve confidence heads and eight RF routers verified. Accuracy: numeric25 71.9282%, TCP-augmented28 69.5560%; paired difference −2.3723 pp, 95% CI [−4.5736, −0.3865]. Large confidence training-to-validation gaps; direct TCP also loses to fusion | Preserve the completed development result and original pause; distinguish confidence overfitting from producer-representation transfer in any separately approved follow-up |
 | M6 Gated residual fusion | Deferred after no-go | The primary router does not meet the declared feasibility criteria | Do not proceed under this failed gate |
 | M7 Robust confirmation | Planned | Selected routers have matched multi-seed internal holdout evidence, not independent confirmation | Seek independent data; do not reinterpret selected validation as confirmation |
 | M8 Integration and reproducibility | Partially delivered through M4 | Reproducible milestone runners, immutable artifacts, and 751 focused regression cases exist | Preserve M4 integration; broader method integration remains deferred |
@@ -1039,7 +1055,13 @@ results, unresolved issues, and completion evidence for that step.
 | [`06_router_capacity_exploration.md`](06_router_capacity_exploration.md) | Separate development-only model-capacity exploration; not M5/M6 | Complete: all three learners and all three feature variants evaluated; nine policies sealed; independent validation, byte-preserving reuse, and original-parent checks pass |
 | [`07_router_mlp_exploration.md`](07_router_mlp_exploration.md) | Separate development-only MLP architecture exploration; not M7 confirmation | Complete: 48 CPU fits and three selected policies; epoch histories, independent repeat fits, score replay and immutable reuse verified; all original artifacts preserved through an additive column-order replay correction |
 | [`08_legacy_capacity_transfer.md`](08_legacy_capacity_transfer.md) | Separate frozen RF/XGB/MLP legacy-expert transfer; not M5 | Complete: both checkpoint families and all ablations evaluated without fitting/selection; independent prediction/metric audits, reconstruction, immutable reuse, and 931-parent lineage checks pass |
+| [`09_relaxed_guardrails_lr.md`](09_relaxed_guardrails_lr.md) | Separate LR guardrail sensitivity and exploratory cleaned-test transfer; not M5 | Complete: all 27 approved guardrail combinations selected only on development; both test families scored with unchanged LR models; independent audits, 252-parent checks, immutable reuse and append-only registry verified; native-runtime caveat recorded |
+| [`10_relaxed_guardrails_rf.md`](10_relaxed_guardrails_rf.md) | Separate frozen-RF guardrail sensitivity and exploratory cleaned-test transfer; not M5 | Complete: all 27 development-only selections, both test families and three feature variants; unchanged twelve RF states, 1,025-parent checks, independent reconstruction/bootstrap audits, immutable reuse and fourth registry event verified; native-runtime caveat recorded |
+| [`11_relaxed_margin_guardrail.md`](11_relaxed_margin_guardrail.md) | Separate OOF margin-heuristic sensitivity and exploratory cleaned-test evaluation; not M5 | Complete: original threshold reproduced, one H≤0.7R threshold sealed; cleaned-test gain +0.074239 pp, below the original heuristic, with CI spanning zero and lower weighted F1; independent OOF/metric/bootstrap audits, immutable reuse and fifth registry event verified |
 | `05_test_time_correction.md` | M5 | Not created |
+| [`12_confidnet_initial_experiment.md`](12_confidnet_initial_experiment.md) | Separate frozen-expert confidence estimation and direct TCP policy | Complete: 12 heads, saturated image/fusion estimates and zero TCP interventions; independent metric/state audits, 61-file immutable reuse and 75 focused tests verified; no validation selection or cleaned-test access |
+| [`13_confidnet_oof_proposal.md`](13_confidnet_oof_proposal.md) | Approved pooled expert-OOF confidence supervision and numerical-router setup | Approved scope delivered with native-replay amendment; router feature sets fixed at 25 versus 28 |
+| [`14_confidnet_oof_experiment.md`](14_confidnet_oof_experiment.md) | Execution record for the approved OOF study | Complete: 12 heads, 8 routers, negative augmented-router result, independent audits and 191-file immutable reuse verified; 305 tests passed |
 | `06_gated_fusion.md` | M6 | Not created |
 | `07_evaluation_and_confirmation.md` | M7 | Not created |
 
@@ -1078,8 +1100,26 @@ corresponding record exists.
 | D026 | 2026-09-09 | Recorded exploratory outcome | Complete the agreed MLP grid [32], [64], [32,16], [64,32] across all three feature variants/four seeds, with fixed 300-epoch training and no validation early stopping | Greater capacity lowers training NLL but worsens validation NLL; [32]/numeric gives +0.425791 pp habitat gain with conditional CI spanning zero, below existing baseline point estimates; no promotion or test access |
 | D027 | 2026-09-09 | Implementation correction | Preserve all 148 sealed MLP source files; add `router_mlp_v1_replay_v2` with hash-bound support for the two known training-history column orders and unchanged strict numerical checks | Canonical JSON key sorting changes reconstruction order, not values; all scoring rules and fitted states remain unchanged, with no refitting or original-file rewrite |
 | D028 | 2026-09-09 | Recorded exploratory outcome | Apply the nine sealed RF/XGB/MLP policies, including both feature ablations, to the same two legacy cleaned-test expert families as the prior LR transfer | Separate apply-only study with a new registered test event; RF point gains are modest, MLP/numeric gains smaller, and every new gain interval versus raw includes/touches zero; preserve historical-test-bias disclosures and original M4 no-go |
+| D029 | 2026-09-13 | Recorded exploratory outcome | Complete the user-approved 20/10/no-plot × 0.5/0.7/0.9 harm-cap sensitivity using all three frozen LR variants as a compute-limited starting point, not because of test ranking | Threshold selection remains development-only with unchanged C/models/calibration; plot minima do not affect selected policies and 0.7/0.9 coincide. Fixed-final gains are +0.687/+0.612/+0.780 pp, but all gain and paired intervals include zero; no policy promotion, broader-learner expansion, or M4 gate revision |
+| D030 | 2026-09-13 | Recorded exploratory outcome | Complete the user-requested RF extension of the same nine-setting guardrail grid across all three frozen feature variants, without model/configuration reselection or test threshold search | Plot minima again have no effect. Full727 distinguishes 0.7/0.9; both ablations share those thresholds. Fixed-final relaxed gains are +0.761 to +0.854 pp with lower top-3, uncertain intervals and inconsistent test-selected transfer; no promotion or M4/M5/M6 gate change |
+| D031 | 2026-09-16 | Recorded exploratory outcome | Complete the user-requested geo/raw margin heuristic under H≤0.7R, retaining 1% coverage and 20 plots, using OOF-only threshold selection and the current report's expert family | Threshold falls to 0.1311806422; test interventions rise to 371 but 136 rescues and 132 harms give only +4 pooled net corrections. Accuracy 74.387528% and weighted F1 0.736112 underperform the original heuristic; uncertain adaptive-test result, no threshold retuning or M4 gate revision |
+| D032 | 2026-09-22 | Recorded exploratory outcome | Complete the approved initial same-training-set ConfidNet study using frozen full-development-train experts, native TCP targets, twelve fixed-budget heads and a zero-difference policy | Image/fusion have no training errors; confidence heads saturate near one. All twelve validation failure AP/AUC comparisons lose to MCP and the TCP policy never intervenes. Preserve this fixed-recipe negative result; it does not establish a limit of TCP or representations. No augmented router, cleaned-test access, or M4 gate change |
+| D033 | 2026-09-22 | Approved setup; execution paused | Fit pooled expert-OOF ConfidNets and compare an RF using 25 numerical summaries with an RF using those summaries plus three estimated TCPs | First image-head verification exceeds float64 replay tolerance on one training row (1.19913e-6 versus 1e-6), while native float32 JSON replay is exact. Preserve the pause and training-only diagnostic; obtain approval for the proposed verification amendment before continuing. No router or validation results yet |
+| D034 | 2026-09-22 | User-approved verification amendment | Require exact native float32 confidence replay from saved JSON weights; record independent float64 differences without an absolute-tolerance rejection | Continue in confidnet_oof_v1_replay_v2, preserving the original declaration and pause. Scientific settings and native predictions are unchanged; failed final checks now retain model/history. All 305 focused tests pass before launch |
+| D035 | 2026-09-22 | Recorded exploratory outcome | Complete the approved OOF-supervised confidence and numeric25/28 RF comparison under the native-replay amendment | Augmented accuracy 69.5560% versus matched numeric25 71.9282%; −2.3723 pp with paired whole-plot CI [−4.5736, −0.3865], lower in all four seeds. Training failure AP near 0.997 does not transfer; direct TCP also underperforms fusion. Preserve this negative pipeline result; no cleaned-test evaluation, retuning, or M4 gate change |
 
 ## Immediate next action
+
+Review the completed [OOF ConfidNet study](14_confidnet_oof_experiment.md).
+The approved twelve-head/eight-router comparison is complete: adding estimated
+TCPs reduces mean validation accuracy from 71.9282% to 69.5560%, and the direct
+TCP comparator also underperforms fusion. Confidence fits now learn the richer
+OOF supervision, but their strong training performance does not transfer to
+validation. The chosen design combines in-sample ConfidNet router features
+with transfer from fold-specific to full-train expert representations; this
+experiment cannot separate those effects. Preserve the negative result and
+its original verification-pause history. Any follow-up requires a separately
+approved design; no additional controls or retuning were run.
 
 Review the completed [M4 feasibility result](04_router_feasibility.md). The
 current primary method has a frozen no-go outcome; do not proceed to M5/M6,
@@ -1095,11 +1135,29 @@ The subsequent [frozen RF/XGB/MLP legacy transfer](08_legacy_capacity_transfer.m
 is also complete as a separate, explicitly authorized exploratory study. It
 transfers all selected states and thresholds unchanged, appends a new test
 event, and does not supply independent confirmation or authorize retuning.
+The user-approved [relaxed LR guardrail study](09_relaxed_guardrails_lr.md)
+is now also complete under its own declaration. It selected all 27 thresholds
+only on development-validation, then froze them before both legacy test
+applications. The subsequently authorized [RF extension](10_relaxed_guardrails_rf.md)
+is also complete: all 27 RF policies were selected on development and applied
+unchanged to both legacy families, preserving the twelve fitted RF states and
+every earlier study. Review both sensitivity records and their uncertainty
+without choosing a test-winning guardrail, feature variant, or checkpoint
+family. This grid has not been extended to XGB or MLP; further work needs a
+separate authorized scope and declaration. None of these exploratory results
+replaces the original no-go or constitutes independent confirmation.
+
+The separately authorized [relaxed margin heuristic](11_relaxed_margin_guardrail.md)
+is also complete. Its threshold was selected only on training OOF predictions
+with H≤0.7R, then frozen before one-family cleaned-test application. It raises
+coverage but performs worse than the original margin rule on this test set;
+retain this negative sensitivity result without additional test-driven tuning.
 
 ## Change log
 
 | Date | Change |
 |---|---|
+| 2026-09-22 | Completed the approved initial ConfidNet experiment: twelve same-training-set heads, saturated image/fusion confidence and zero TCP-policy interventions; validation remains at 71.0462%. Independent metrics/replay and 61-file byte/mtime-preserving reuse pass; 75 focused tests passed before fitting. Documented optimization limitations and the distinct confidence/router cross-fitting choices. Original M4 and prior artifacts remain unchanged. |
 | 2026-08-24 | Created the living method specification and implementation roadmap |
 | 2026-08-24 | Replaced nested outer CV for router development with one fixed grouped development holdout plus four-fold cross-fitting inside development-train; recorded the weaker evidence status and frozen-router final-refit rule |
 | 2026-08-25 | Completed M1: froze fold-contained B2 encoder adaptation with legacy BGR/439 preprocessing, sealed the label-blind test identity, materialized and validated grouped assignments, and added protocol/leakage/immutability enforcement |
@@ -1115,6 +1173,12 @@ event, and does not supply independent confirmation or authorize retuning.
 | 2026-09-09 | Completed the separately declared development-only capacity round: reused 48 LR candidates and fitted 48 RF plus 48 XGB candidates across 727/79/25 features; sealed all predictions before scoring; selected nine policies; independent reconstruction, byte/mtime-preserving reuse, 198-parent hash audit, and 839 focused tests pass. RF gains are modest and exploratory; original M4 no-go remains unchanged |
 | 2026-09-09 | Completed all 48 declared MLP fits on CPU in 279.14 s; selected [32] for each feature variant; numeric-only correction gains +0.425791 pp with conditional CI including zero. Preserved all sealed files through additive curve-order replay correction; independent validation, exact repeat fits, byte/mtime-preserving reuse, 810-file lineage audit, and 1,038 focused tests pass. Original M4 no-go remains unchanged |
 | 2026-09-09 | Completed the frozen legacy transfer for all nine RF/XGB/MLP policies and both checkpoint families in 95.56 s, with no fitting/recalibration/threshold selection. Independent validation and repeat-build reuse pass; all 36 output files and four predecessor bundles preserve bytes/mtimes, all 931 parent hashes validate, and 1,304 focused tests pass. RF fixed-final habitat gains are +0.334 to +0.353 pp, below the prior LR/no-pairs point gain; all new gain intervals versus raw include/touch zero. M4 no-go and M5/M6 deferral remain unchanged |
+| 2026-09-13 | Completed `relaxed_guardrails_lr_v1`: 27 policies from all frozen LR variants and the approved plot/harm grid, including H≤0.9R. Development selection and both-family cleaned-test reporting completed in 84.99 s; independent validation, 29,007-candidate audit, metric/bootstrap audit, 40-file byte/mtime reuse, 252-parent preservation, and 1,519 tests pass. A native reuse crash left artifacts unchanged; diagnostic retry passed, with no claimed runtime fix. Harm relaxation improves fixed-final point gains, plot relaxation has no effect, and all gain-over-raw and paired-gain intervals include zero. Original M4 no-go remains unchanged |
+| 2026-09-13 | Completed `relaxed_guardrails_rf_v1`: 27 policies from all three frozen RF variants and the same plot/harm grid, 216 new application cases over both legacy families. Build, independent validation (156.82 s), repeat reuse (162.92 s), 15,984-candidate audit, full metric/bootstrap audit, 40-file and seven-parent-bundle byte/mtime preservation, 1,025-parent hashes, fourth append-only test event, and 1,784 focused tests pass. Two native-runtime crashes resumed safely without source/scientific changes; successful build attempt took 161.30 s. Relaxed fixed-final top-1 gains are +0.761 to +0.854 pp, top-3 decreases, plot relaxation has no effect, and all gain/paired intervals include zero. M4 no-go and M5/M6 deferral remain unchanged |
+| 2026-09-16 | Completed `relaxed_guardrails_margin_v1`: one OOF-selected H≤0.7R margin policy, unchanged coverage/plot constraints and calibration, single-family cleaned-test application. Build (9.85 s), validation (7.38 s), repeat reuse (7.49 s), independent 4,029-candidate and 2,000-bootstrap audits, 25-file byte/mtime preservation, 1,073-parent checks, fifth append-only test event and 382 focused tests pass. More interventions reduce net benefit relative to the original heuristic: accuracy 74.387528%, weighted F1 0.736112, net +4 pooled; all gain intervals span zero. No original artifacts or M4/M5/M6 decisions change |
+| 2026-09-22 | Approved and implemented pooled OOF ConfidNet study with 25-summary versus 28-input RF routers; 193 tests passed. Execution paused at first image-head float64 replay tolerance. Training-only diagnostic reproduces the 1.19913e-6 discrepancy on one row and exact native replay after 500 finite epochs. Original artifacts preserved; verification amendment pending approval, no router fitting or validation scoring. |
+| 2026-09-22 | User approved exact native float32 confidence replay with diagnostic float64 differences. Implemented an additive continuation that preserves the original paused study and reuses verified extraction; 305 focused tests passed before launch. Scientific recipe and 25/28 router features are unchanged. |
+| 2026-09-22 | Completed the approved OOF ConfidNet continuation: 12 heads and 8 numerical RF routers. Augmented accuracy 69.5560% versus 71.9282% baseline (−2.3723 pp, paired CI [−4.5736, −0.3865]); direct TCP 69.8601% versus fusion 71.0462%. Exact native replay, independent metrics/bootstrap/provenance audits, 364-parent checks, preservation of 1,190 prior plus 34 paused-study files, and 191-file byte/mtime-preserving reuse pass. All 305 focused tests passed; no cleaned-test scoring, retuning, or M4 change. |
 
 ## Related pipeline files
 
