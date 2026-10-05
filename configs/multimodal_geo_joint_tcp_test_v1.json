@@ -1,0 +1,41 @@
+{
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20260826,
+    "unit": "whole_plot_all_seed_realizations"
+  },
+  "configuration_count": 16,
+  "evidence_status": "exploratory_previously_inspected_cleaned_test",
+  "expert_producer": "full_development_train",
+  "fitting": false,
+  "fixed_zero_policy_count": 16,
+  "float64_replay": "diagnostic_only",
+  "frozen_router_count": 64,
+  "paired_contrast_count": 360,
+  "parent_study_id": "joint_tcp_router_v1",
+  "primary_policy_count": 161,
+  "producer_fold": -1,
+  "recalibration": false,
+  "reference_policies": [
+    "fusion",
+    "image",
+    "geo"
+  ],
+  "relaxed_policy_count": 144,
+  "router_execution": "native_float32_cpu_one_thread_exact_replay",
+  "router_policies": "all_parent_validation_thresholds_and_fixed_zero",
+  "score_dtype": "float64_after_native_float32_inference",
+  "study_id": "joint_tcp_router_test_v1",
+  "test_guardrail_enforcement": false,
+  "test_label_access": "after_all_four_prediction_bundles_are_sealed_and_event_reserved",
+  "test_plots": 531,
+  "test_rows": 1347,
+  "threshold_selection": false,
+  "training_seeds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "winner_selection": false
+}

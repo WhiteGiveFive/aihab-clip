@@ -28,6 +28,12 @@ the same RF settings and evaluated with the same fixed intervention rule.
 Historical routers with validation-selected thresholds are context rather than
 the matched baseline for this experiment.
 
+Subsequent user-requested analysis: [relaxed threshold selection](15_confidnet_relaxed_guardrails.md)
+reuses these saved routers under the previous RF guardrail grid. It raises
+augmented accuracy to 71.7762%, versus 72.0499% for the equally selected
+numeric25 baseline. That separate result does not alter the fixed-zero
+protocol or results below.
+
 ## Results: confidence fitting succeeded, routing did not improve
 
 Every confidence head completed 500 epochs with no zero-gradient epoch. All

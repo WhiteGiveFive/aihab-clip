@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "layout_id": "geometry_layout_v1",
+  "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness",
+  "registry_root": "multimodal_artifacts/locked_test_registry/cs/gse_100m_cleaned_test/events",
+  "migration_manifest": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/geometry_layout_v1/migration_manifest.json",
+  "embedding_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/adapted_geometry_v1/embeddings",
+  "development_record": "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md",
+  "policy": {
+    "new_outputs": "Use a versioned study directory under artifact_root; pass --output-dir explicitly.",
+    "sealed_outputs": "Preserve bytes and internal layout; no overwrite, rescoring, or rewriting recorded provenance paths.",
+    "compatibility": "Directory aliases retain original source/registry paths and relative report links.",
+    "verification": "Read-only layout verification; no training or evaluation."
+  },
+  "studies": [
+    {
+      "study_id": "embedding_geometry_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-29_embedding_geometry",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/embedding_geometry_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/embedding_geometry_v1/report.md",
+      "entrypoint": "tools/plot_multimodal_embedding_geometry.py",
+      "extra_args": [
+        "--development-split",
+        "all"
+      ]
+    },
+    {
+      "study_id": "geometry_disagreement_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_geometry_disagreement_check",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/geometry_disagreement_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/geometry_disagreement_v1/report.md",
+      "entrypoint": "tools/check_geometry_disagreements.py",
+      "extra_args": []
+    },
+    {
+      "study_id": "joint_geometry_validation_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_joint_geometry_policy_validation",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_v1/report.md",
+      "entrypoint": "tools/evaluate_joint_geometry_policy.py",
+      "extra_args": []
+    },
+    {
+      "study_id": "joint_geometry_cleaned_test_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_joint_geometry_policy_cleaned_test",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_cleaned_test_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_cleaned_test_v1/report.md",
+      "entrypoint": "tools/evaluate_joint_geometry_cleaned_test.py",
+      "extra_args": []
+    },
+    {
+      "study_id": "joint_geometry_full_reference_cleaned_test_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_joint_geometry_policy_full_reference",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_full_reference_cleaned_test_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_full_reference_cleaned_test_v1/report.md",
+      "entrypoint": "tools/evaluate_joint_geometry_full_reference.py",
+      "extra_args": []
+    },
+    {
+      "study_id": "joint_geometry_k5_correction_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_joint_geometry_policy_k5",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_k5_correction_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_k5_correction_v1/report.md",
+      "entrypoint": "tools/evaluate_joint_geometry_k5.py",
+      "extra_args": []
+    },
+    {
+      "study_id": "joint_geometry_shared_k_sweep_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_joint_geometry_policy_k_sweep",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_shared_k_sweep_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_shared_k_sweep_v1/report.md",
+      "entrypoint": "tools/evaluate_joint_geometry_k_sweep.py",
+      "extra_args": []
+    },
+    {
+      "study_id": "joint_geometry_validation_thresholds_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_joint_geometry_thresholds",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_thresholds_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_thresholds_v1/report.md",
+      "entrypoint": "tools/evaluate_joint_geometry_thresholds.py",
+      "extra_args": []
+    },
+    {
+      "study_id": "joint_geometry_adapted_encoder_v1",
+      "legacy_root": "dev_plans/reliability_aware_geo_fusion/reports/2026-09-30_joint_geometry_adapted_encoder",
+      "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_adapted_encoder_v1",
+      "review_report": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_adapted_encoder_v1/report.md",
+      "entrypoint": "tools/evaluate_joint_geometry_adapted.py",
+      "extra_args": []
+    }
+  ]
+}

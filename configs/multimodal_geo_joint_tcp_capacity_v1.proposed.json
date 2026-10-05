@@ -1,0 +1,5 @@
+{
+  "status": "superseded_by_approved_config",
+  "approved_config": "configs/multimodal_geo_joint_tcp_capacity_v1.json",
+  "note": "User selected four two/three-layer architectures and authorized matched legacy cleaned-test comparison."
+}

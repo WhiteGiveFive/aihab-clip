@@ -1,0 +1,22 @@
+{
+  "study_id": "confidnet_fold4_test_v1",
+  "parent_study_id": "confidnet_fold4_v1",
+  "training_seeds": [1, 2, 3, 4],
+  "expert_producer_fold": 3,
+  "test_rows": 1347,
+  "test_plots": 531,
+  "expert_modes": ["image", "geo", "raw"],
+  "router_arms": ["baseline", "augmented"],
+  "router_policies": "fixed_zero_and_all_18_saved_validation_guardrail_policies",
+  "direct_tcp_policy": "choose_highest_estimated_tcp_among_image_geo_fusion",
+  "tie_priority": ["raw", "geo", "image"],
+  "reference_policies": ["image", "geo", "fusion", "tcp_geo_fusion", "mcp_geo_fusion"],
+  "fitting": false,
+  "recalibration": false,
+  "threshold_selection": false,
+  "test_label_access": "after_all_four_prediction_bundles_are_sealed_and_event_reserved",
+  "confidence_execution": "native_float32_cpu_one_thread_exact_replay",
+  "float64_confidence_replay": "diagnostic_only",
+  "bootstrap": {"resamples": 2000, "seed": 20260826, "unit": "whole_plot_all_seed_realizations"},
+  "evidence_status": "exploratory_previously_inspected_cleaned_test"
+}

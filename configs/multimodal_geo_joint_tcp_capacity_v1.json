@@ -1,0 +1,765 @@
+{
+  "approval_status": "approved_user_selected_moderate_depth_grid_2026_09_28",
+  "architecture_selection": "none_report_all",
+  "architectures": [
+    {
+      "architecture_id": "h32",
+      "hidden_widths": [
+        32
+      ],
+      "parameter_counts": {
+        "25": 1030,
+        "79": 2758
+      },
+      "source": "reuse_parent"
+    },
+    {
+      "architecture_id": "h64_32",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "parameter_counts": {
+        "25": 3942,
+        "79": 7398
+      },
+      "source": "new_fit"
+    },
+    {
+      "architecture_id": "h128_64",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "parameter_counts": {
+        "25": 11974,
+        "79": 18886
+      },
+      "source": "new_fit"
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "parameter_counts": {
+        "25": 4374,
+        "79": 7830
+      },
+      "source": "new_fit"
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "parameter_counts": {
+        "25": 13862,
+        "79": 20774
+      },
+      "source": "new_fit"
+    }
+  ],
+  "auxiliary_weights": [
+    0.0,
+    0.1,
+    1.0,
+    10.0
+  ],
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20260826,
+    "selection_adjusted": false,
+    "unit": "whole_plot_all_images_all_seed_realizations"
+  },
+  "configs": [
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint__numeric25__lambda_0",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "reuse_parent",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint__numeric25__lambda_0p1",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "reuse_parent",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint__numeric25__lambda_1",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "reuse_parent",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint__numeric25__lambda_10",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "reuse_parent",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint__no_pairs79__lambda_0",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "reuse_parent",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint__no_pairs79__lambda_0p1",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "reuse_parent",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint__no_pairs79__lambda_1",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "reuse_parent",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h32",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint__no_pairs79__lambda_10",
+      "hidden_widths": [
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "reuse_parent",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h64_32__numeric25__lambda_0",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h64_32__numeric25__lambda_0p1",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h64_32__numeric25__lambda_1",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h64_32__numeric25__lambda_10",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h64_32__no_pairs79__lambda_0",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h64_32__no_pairs79__lambda_0p1",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h64_32__no_pairs79__lambda_1",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h64_32__no_pairs79__lambda_10",
+      "hidden_widths": [
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h128_64__numeric25__lambda_0",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h128_64__numeric25__lambda_0p1",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h128_64__numeric25__lambda_1",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h128_64__numeric25__lambda_10",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h128_64__no_pairs79__lambda_0",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h128_64__no_pairs79__lambda_0p1",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h128_64__no_pairs79__lambda_1",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h128_64__no_pairs79__lambda_10",
+      "hidden_widths": [
+        128,
+        64
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h64_32_16__numeric25__lambda_0",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h64_32_16__numeric25__lambda_0p1",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h64_32_16__numeric25__lambda_1",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h64_32_16__numeric25__lambda_10",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h64_32_16__no_pairs79__lambda_0",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h64_32_16__no_pairs79__lambda_0p1",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h64_32_16__no_pairs79__lambda_1",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h64_32_16",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h64_32_16__no_pairs79__lambda_10",
+      "hidden_widths": [
+        64,
+        32,
+        16
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h128_64_32__numeric25__lambda_0",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h128_64_32__numeric25__lambda_0p1",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h128_64_32__numeric25__lambda_1",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h128_64_32__numeric25__lambda_10",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "source": "new_fit",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 0.0,
+      "config_id": "joint_capacity__h128_64_32__no_pairs79__lambda_0",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 0.1,
+      "config_id": "joint_capacity__h128_64_32__no_pairs79__lambda_0p1",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 1.0,
+      "config_id": "joint_capacity__h128_64_32__no_pairs79__lambda_1",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "architecture_id": "h128_64_32",
+      "auxiliary_weight": 10.0,
+      "config_id": "joint_capacity__h128_64_32__no_pairs79__lambda_10",
+      "hidden_widths": [
+        128,
+        64,
+        32
+      ],
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "source": "new_fit",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    }
+  ],
+  "configuration_count": 40,
+  "evidence_status": "exploratory_reused_development_validation_after_prior_research_test_exposure",
+  "expert_updates": false,
+  "features": [
+    {
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "variant": "ablation_numeric25"
+    },
+    {
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "variant": "ablation_no_pairs79"
+    }
+  ],
+  "fixed_zero_policy_count": 40,
+  "harm_denominator": 10,
+  "harm_numerator_grid": [
+    5,
+    7,
+    9
+  ],
+  "hidden_layer_rule": "linear_relu_dropout_each_layer",
+  "locked_test_access": true,
+  "loss": "mean_image_cross_entropy_plus_lambda_times_mean_image_and_expert_tcp_mse",
+  "minimum_coverage_fraction": 0.01,
+  "minimum_plots_grid": [
+    20,
+    10,
+    0
+  ],
+  "new_extraction": false,
+  "new_fit_count": 128,
+  "paired_contrasts": {
+    "development_total": 1020,
+    "larger_architecture_versus_32": 320,
+    "positive_auxiliary_weight_versus_zero": 300,
+    "test_matched_RF_LR_at_plots20_harm0p7": 80,
+    "test_total": 1100,
+    "versus_fusion": 400
+  },
+  "parameters": {
+    "activation": "relu",
+    "batch_size": 128,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "bias_weight_decay": 0.0,
+    "checkpoint": "final_epoch",
+    "class_weighting": false,
+    "device": "cpu",
+    "dropout": 0.1,
+    "dtype": "float32",
+    "early_stopping": false,
+    "epochs": 300,
+    "eps": 1e-08,
+    "learning_rate": 0.001,
+    "num_threads": 1,
+    "optimizer": "adamw",
+    "scheduler": null,
+    "shuffle": true,
+    "state_activation": "softmax",
+    "tcp_activation": "sigmoid",
+    "weight_decay": 0.001
+  },
+  "parent_study_id": "joint_tcp_router_v1",
+  "positive_net_required": true,
+  "reference_policy_count": 1,
+  "relaxed_policy_count": 360,
+  "reused_fit_count": 32,
+  "schema_version": "geo_helpfulness.joint_tcp_capacity_config.v1",
+  "score_dtype": "float64_after_native_float32_inference",
+  "study_id": "joint_tcp_router_capacity_v1",
+  "target_order": [
+    "rescue",
+    "harm",
+    "both_correct",
+    "both_wrong"
+  ],
+  "tcp_order": [
+    "fusion",
+    "geo"
+  ],
+  "tcp_target": "authoritative_native_t1_true_class_probability",
+  "test_application": {
+    "encoder_inputs": "authenticated_historical_cached_image_features",
+    "encoder_provenance_limitation": "No historical end-to-end encoder-to-cache fingerprint; exact caches, heads and saved outputs authenticated.",
+    "expected_fusion_mean_accuracy": 0.7431328878990348,
+    "expert_family": "legacy_fixed_final_epoch50_best_model",
+    "expert_fit_rows": 4200,
+    "historical_comparators": [
+      "rf_full727",
+      "rf_no_pairs79",
+      "rf_numeric25",
+      "lr_full727",
+      "lr_no_pairs79",
+      "lr_numeric25"
+    ],
+    "router_refitting": false,
+    "test_plots": 531,
+    "test_rows": 1347,
+    "threshold_selection": false
+  },
+  "training_seeds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "verification": {
+    "native_float32": "exact_serialized_state_replay",
+    "portable_float64": "diagnostic_only"
+  },
+  "weight_selection": "none_report_all",
+  "with_embeddings": false
+}

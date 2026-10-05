@@ -1,0 +1,1037 @@
+{
+  "schema_version": 1,
+  "artifact_root": "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness",
+  "studies": [
+    {
+      "id": "m1_protocol",
+      "title": "M1: frozen experimental protocol and locked-test identity",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/01_experimental_protocol.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_protocol.py",
+        "multimodal/geo_helpfulness_locked_eval.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_helpfulness.yaml"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/protocol"
+      ],
+      "status": "complete",
+      "notes": "The unsuffixed CLI is the established M1 entrypoint. Its declared later-stage shells do not replace the implemented M2-M4 runners."
+    },
+    {
+      "id": "m2_expert_outputs",
+      "title": "M2: development-train OOF experts and development-validation outputs",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/02_oof_expert_outputs.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_m2.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_oof.py",
+        "multimodal/geo_helpfulness_oof_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_helpfulness.yaml"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/development_train_oof",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/development_validation"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "m3_targets_features",
+      "title": "M3: OOF router targets and feature contract",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/03_targets_and_features.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_m3.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_targets_features.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_helpfulness.yaml"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/router/targets_and_feature_contract"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "m4_router_dataset",
+      "title": "M4: frozen router training dataset and transforms",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/04_router_dataset_preparation.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_m4_dataset.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_dataset.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_helpfulness.yaml"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/router"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "router_candidates_v1",
+      "title": "M4: original router candidate optimizer budget",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/04_router_candidate_training.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_m4_candidates.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_candidates.py",
+        "multimodal/geo_helpfulness_router_candidate_fit.py",
+        "multimodal/geo_helpfulness_router_candidate_state.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_router_candidates_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/router/router_candidates_v1"
+      ],
+      "status": "historical-paused",
+      "notes": "The incomplete v1 candidate bundle is retained unchanged. Completed candidates use the approved v2 optimizer-budget amendment."
+    },
+    {
+      "id": "router_candidates_v2",
+      "title": "M4: completed router candidates with amended optimizer budget",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/04_router_candidate_training.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_m4_candidates.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_candidates.py",
+        "multimodal/geo_helpfulness_router_candidate_fit.py",
+        "multimodal/geo_helpfulness_router_candidate_state.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_router_candidates_v2.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/router/router_candidates_v2"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "router_validation_v1",
+      "title": "M4: validation predictions and fixed-threshold preview",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/04_router_validation_preview.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_m4_validation.py",
+        "tools/run_multimodal_geo_helpfulness_m4_preview.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_validation.py",
+        "multimodal/geo_helpfulness_router_validation_inputs.py",
+        "multimodal/geo_helpfulness_router_preview_score.py",
+        "multimodal/geo_helpfulness_router_preview_score_v2.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_helpfulness.yaml"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/router/router_validation_v1"
+      ],
+      "status": "complete",
+      "notes": "The additive preview-v2 scorer corrects serialized dtype handling while preserving the original prediction bundle and scorer."
+    },
+    {
+      "id": "m4_feasibility_v1",
+      "title": "M4: completed feasibility evaluation and selection receipt",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/04_router_feasibility.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_m4_finalize.py",
+        "tools/run_multimodal_geo_helpfulness_m4.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_m4_analysis.py",
+        "multimodal/geo_helpfulness_router_m4_inputs.py",
+        "multimodal/geo_helpfulness_router_m4_finalize.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_router_m4_evaluation_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/router/m4_comparator_inputs_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/router/m4_feasibility_v1"
+      ],
+      "status": "complete",
+      "notes": "Use the finalize entrypoint for the complete receipt-schema correction. The original entrypoint remains the immutable preparation implementation. Complete denotes finished evaluation, whose primary scientific decision was no-go."
+    },
+    {
+      "id": "legacy_frozen_router_transfer_v1",
+      "title": "Legacy expert-family transfer of frozen M4 routers",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/05_legacy_router_transfer.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_legacy_router.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_legacy_router_common.py",
+        "multimodal/geo_helpfulness_legacy_router_inference.py",
+        "multimodal/geo_helpfulness_legacy_router_score.py",
+        "multimodal/geo_helpfulness_legacy_router_report.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/exploratory_legacy_router_v1"
+      ],
+      "status": "complete",
+      "notes": "The declared study ID intentionally differs from its exploratory artifact directory name."
+    },
+    {
+      "id": "router_capacity_v1",
+      "title": "Development-validation router capacity exploration",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/06_router_capacity_exploration.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_router_capacity.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_capacity.py",
+        "multimodal/geo_helpfulness_router_capacity_inputs.py",
+        "multimodal/geo_helpfulness_router_capacity_fit.py",
+        "multimodal/geo_helpfulness_router_capacity_score.py",
+        "multimodal/geo_helpfulness_router_capacity_state.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_router_capacity_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/router_capacity_v1"
+      ],
+      "status": "complete",
+      "supporting_files": [
+        "configs/router_capacity_requirements.txt"
+      ]
+    },
+    {
+      "id": "router_mlp_v1",
+      "title": "MLP router fitted states and sealed predictions",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/07_router_mlp_exploration.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_router_mlp.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_mlp.py",
+        "multimodal/geo_helpfulness_router_mlp_fit.py",
+        "multimodal/geo_helpfulness_router_mlp_state.py",
+        "multimodal/geo_helpfulness_router_mlp_score.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_router_mlp_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/router_mlp_v1"
+      ],
+      "status": "complete",
+      "notes": "All fits and predictions are complete. Corrected scoring is stored separately in router_mlp_v1_replay_v2."
+    },
+    {
+      "id": "router_mlp_v1_replay_v2",
+      "title": "MLP router immutable training-history replay correction",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/07_router_mlp_exploration.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_router_mlp_replay.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_mlp_replay.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_router_mlp_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/router_mlp_v1_replay_v2"
+      ],
+      "status": "complete",
+      "notes": "This catalog ID names the scoring artifact version; the original declared scientific study remains router_mlp_v1. The replay corrects column ordering and does not define a new architecture search."
+    },
+    {
+      "id": "legacy_capacity_router_transfer_v1",
+      "title": "Legacy expert-family transfer of selected capacity routers",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/08_legacy_capacity_transfer.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_legacy_capacity.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_legacy_capacity.py",
+        "multimodal/geo_helpfulness_legacy_capacity_predictions.py",
+        "multimodal/geo_helpfulness_legacy_capacity_registry.py",
+        "multimodal/geo_helpfulness_legacy_capacity_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_legacy_capacity_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/exploratory_legacy_capacity_v1"
+      ],
+      "status": "complete",
+      "notes": "The declared study ID intentionally differs from its exploratory artifact directory name."
+    },
+    {
+      "id": "relaxed_guardrails_lr_v1",
+      "title": "Relaxed intervention guardrails for logistic routers",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/09_relaxed_guardrails_lr.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_relaxed_guardrails.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_relaxed_guardrails.py",
+        "multimodal/geo_helpfulness_relaxed_guardrails_selection.py",
+        "multimodal/geo_helpfulness_relaxed_guardrails_registry.py",
+        "multimodal/geo_helpfulness_relaxed_guardrails_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_relaxed_guardrails_lr_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/relaxed_guardrails_lr_v1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "relaxed_guardrails_rf_v1",
+      "title": "Relaxed intervention guardrails for random-forest routers",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/10_relaxed_guardrails_rf.md",
+        "dev_plans/reliability_aware_geo_fusion/reports/2026-09-15_geo_helpfulness_router/report.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_relaxed_rf.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_relaxed_rf.py",
+        "multimodal/geo_helpfulness_relaxed_rf_selection.py",
+        "multimodal/geo_helpfulness_relaxed_rf_registry.py",
+        "multimodal/geo_helpfulness_relaxed_rf_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_relaxed_guardrails_rf_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/relaxed_guardrails_rf_v1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "relaxed_guardrails_margin_v1",
+      "title": "Relaxed intervention guardrails for expert-margin policy",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/11_relaxed_margin_guardrail.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_relaxed_margin.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_relaxed_margin.py",
+        "multimodal/geo_helpfulness_relaxed_margin_selection.py",
+        "multimodal/geo_helpfulness_relaxed_margin_registry.py",
+        "multimodal/geo_helpfulness_relaxed_margin_report.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/relaxed_guardrails_margin_v1"
+      ],
+      "status": "complete",
+      "notes": "The scientific settings are declared by the sealed implementation and artifacts; this historical study has no separate recipe configuration file."
+    },
+    {
+      "id": "confidnet_initial_v1",
+      "title": "Initial ConfidNet confidence-estimation experiment",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/12_confidnet_initial_experiment.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_confidnet.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_confidnet.py",
+        "multimodal/geo_helpfulness_confidnet_extract.py",
+        "multimodal/geo_helpfulness_confidnet_fit.py",
+        "multimodal/geo_helpfulness_confidnet_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_confidnet_initial_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_initial_v1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "confidnet_oof_v1",
+      "title": "Original OOF ConfidNet study paused at parity validation",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/13_confidnet_oof_proposal.md",
+        "dev_plans/reliability_aware_geo_fusion/14_confidnet_oof_experiment.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_confidnet_oof.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_confidnet_oof.py",
+        "multimodal/geo_helpfulness_confidnet_oof_extract.py",
+        "multimodal/geo_helpfulness_confidnet_oof_fit.py",
+        "multimodal/geo_helpfulness_confidnet_oof_report.py",
+        "multimodal/geo_helpfulness_confidnet_oof_reuse.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_confidnet_oof_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_oof_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_oof_v1_review"
+      ],
+      "status": "historical-paused",
+      "notes": "The original partial bundle is preserved. The completed continuation is confidnet_oof_v1_replay_v2."
+    },
+    {
+      "id": "confidnet_oof_v1_diagnostics",
+      "title": "Historical training-only ConfidNet parity recovery",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/14_confidnet_oof_experiment.md"
+      ],
+      "entrypoints": [
+        "tools/diagnose_multimodal_geo_helpfulness_confidnet_oof_parity.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_compat.py",
+        "multimodal/geo_helpfulness_confidnet_oof_fit.py",
+        "multimodal/geo_helpfulness_confidnet_oof_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_confidnet_oof_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_oof_v1_diagnostics"
+      ],
+      "status": "maintenance",
+      "notes": "The canonical adapter requires the explicit run subcommand. The legacy script has no argument parser and can perform a 500-epoch training-only fit; it is not a read-only checker and must not be invoked for --help."
+    },
+    {
+      "id": "confidnet_oof_v1_replay_v2",
+      "title": "Completed OOF ConfidNet continuation with parity correction",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/13_confidnet_oof_proposal.md",
+        "dev_plans/reliability_aware_geo_fusion/14_confidnet_oof_experiment.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_confidnet_oof_v2.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_confidnet_oof_v2.py",
+        "multimodal/geo_helpfulness_confidnet_oof_fit_v2.py",
+        "multimodal/geo_helpfulness_confidnet_oof_extract.py",
+        "multimodal/geo_helpfulness_confidnet_oof_report.py",
+        "multimodal/geo_helpfulness_confidnet_oof_reuse.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_confidnet_oof_replay_v2.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_oof_v1_replay_v2",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_oof_v1_replay_v2_review"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "confidnet_oof_relaxed_guardrails_v1",
+      "title": "Relaxed threshold selection for OOF TCP-augmented routers",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/15_confidnet_relaxed_guardrails.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_confidnet_relaxed_guardrails.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_compat.py",
+        "multimodal/geo_helpfulness_relaxed_rf_selection.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_confidnet_relaxed_guardrails_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_oof_relaxed_guardrails_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_oof_relaxed_guardrails_v1_review"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "confidnet_fold4_v1",
+      "title": "Fold-4 confidence fitting and validation router experiment",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/16_confidnet_fold4_experiment.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_confidnet_fold4.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_confidnet_fold4.py",
+        "multimodal/geo_helpfulness_confidnet_fold4_extract.py",
+        "multimodal/geo_helpfulness_confidnet_fold4_inputs.py",
+        "multimodal/geo_helpfulness_confidnet_fold4_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_confidnet_fold4_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_fold4_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_fold4_v1_review"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "confidnet_fold4_test_v1",
+      "title": "Fold-4 confidence router cleaned-test application",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/17_confidnet_fold4_cleaned_test.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_confidnet_fold4_test.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_confidnet_fold4_test.py",
+        "multimodal/geo_helpfulness_confidnet_fold4_test_extract.py",
+        "multimodal/geo_helpfulness_confidnet_fold4_test_registry.py",
+        "multimodal/geo_helpfulness_confidnet_fold4_test_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_confidnet_fold4_test_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_fold4_test_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/confidnet_fold4_test_v1_review"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "joint_tcp_router_v1",
+      "title": "Joint TCP auxiliary-task router development experiment",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/18_joint_tcp_router_exploration.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_joint_tcp_v1.py",
+        "tools/run_multimodal_geo_helpfulness_joint_tcp.py",
+        "tools/plot_multimodal_geo_helpfulness_joint_tcp_review.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_joint_tcp.py",
+        "multimodal/geo_helpfulness_joint_tcp_extract.py",
+        "multimodal/geo_helpfulness_joint_tcp_fit.py",
+        "multimodal/geo_helpfulness_joint_tcp_report.py",
+        "multimodal/geo_helpfulness_joint_tcp_validation.py",
+        "multimodal/geo_helpfulness_compat.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_joint_tcp_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_v1_review"
+      ],
+      "status": "complete",
+      "notes": "The _v1 entrypoint adds Markdown-order validation compatibility to the unchanged scientific study. Review figures are aggregate-only postprocessing outside the sealed scoring bundle."
+    },
+    {
+      "id": "joint_tcp_router_test_v1",
+      "title": "Joint TCP router cleaned-test application",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/19_joint_tcp_router_cleaned_test.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_joint_tcp_test.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_joint_tcp_test.py",
+        "multimodal/geo_helpfulness_joint_tcp_test_extract.py",
+        "multimodal/geo_helpfulness_joint_tcp_test_registry.py",
+        "multimodal/geo_helpfulness_joint_tcp_test_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_joint_tcp_test_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_test_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_test_v1_review"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "joint_tcp_router_capacity_proposal",
+      "title": "Superseded proposal for the joint TCP capacity study",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/20_joint_tcp_router_capacity.md"
+      ],
+      "entrypoints": [],
+      "modules": [],
+      "configs": [
+        "configs/multimodal_geo_joint_tcp_capacity_v1.proposed.json"
+      ],
+      "artifact_roots": [],
+      "status": "proposal",
+      "notes": "Historical proposal explicitly superseded by the approved multimodal_geo_joint_tcp_capacity_v1.json configuration."
+    },
+    {
+      "id": "joint_tcp_router_capacity_v1",
+      "title": "Joint TCP router capacity development experiment",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/20_joint_tcp_router_capacity.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_joint_tcp_capacity_v1.py",
+        "tools/run_multimodal_geo_helpfulness_joint_tcp_capacity.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_joint_tcp_capacity.py",
+        "multimodal/geo_helpfulness_joint_tcp_capacity_fit.py",
+        "multimodal/geo_helpfulness_joint_tcp_capacity_report.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_joint_tcp_capacity_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_capacity_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_capacity_review"
+      ],
+      "status": "complete",
+      "notes": "The _v1 entrypoint is the complete additive compatibility runner; it preserves the original implementation and scientific settings. The shared review directory includes both validation and cleaned-test audits."
+    },
+    {
+      "id": "joint_tcp_router_capacity_legacy_test_v1",
+      "title": "Joint TCP capacity routers transferred to legacy cleaned-test experts",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/20_joint_tcp_router_capacity.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_joint_tcp_capacity_v1.py",
+        "tools/run_multimodal_geo_helpfulness_joint_tcp_capacity_cache_repair.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_joint_tcp_capacity_test.py",
+        "multimodal/geo_helpfulness_joint_tcp_capacity_test_inputs.py",
+        "multimodal/geo_helpfulness_joint_tcp_capacity_test_registry.py",
+        "multimodal/geo_helpfulness_joint_tcp_capacity_test_score_compat.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_joint_tcp_capacity_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_capacity_legacy_test_v1",
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_capacity_review"
+      ],
+      "status": "complete",
+      "notes": "The cache-repair entrypoint preserves the declared NPZ file-member serialization amendment; the _v1 runner includes its corrected prediction and identity-scoring paths."
+    },
+    {
+      "id": "embedding_geometry_v1",
+      "title": "Image, geo, and concatenated embedding-space overview",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/embedding_geometry_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: overview. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "geometry_disagreement_v1",
+      "title": "Candidate-specific geometry on expert disagreements",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/geometry_disagreement_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: disagreements. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "joint_geometry_validation_v1",
+      "title": "Fixed joint-geometry K=1 policy on development validation",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: validation. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "joint_geometry_cleaned_test_v1",
+      "title": "Fixed joint-geometry K=1 policy on cleaned test with 3378 references",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_cleaned_test_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: cleaned-test. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "joint_geometry_full_reference_cleaned_test_v1",
+      "title": "Fixed joint-geometry K=1 policy with all 4200 development references",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_full_reference_cleaned_test_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: full-reference. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "joint_geometry_k5_correction_v1",
+      "title": "Strict-support K=5 joint-geometry correction",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_k5_correction_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: k5. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "joint_geometry_shared_k_sweep_v1",
+      "title": "Shared-support fallback geometry K sweep",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_shared_k_sweep_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: k-sweep. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "joint_geometry_validation_thresholds_v1",
+      "title": "Validation-selected geometry thresholds with frozen pretrained encoder",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_thresholds_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: thresholds. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "joint_geometry_adapted_encoder_v1",
+      "title": "Validation-selected geometry thresholds with adapted image encoders",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_adapted_encoder_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: adapted. Scientific declarations and original implementation files remain sealed; this catalog does not redefine their settings."
+    },
+    {
+      "id": "adapted_geometry_v1",
+      "title": "Seed-specific adapted image embedding extraction",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/adapted_geometry_v1"
+      ],
+      "status": "complete",
+      "notes": "Canonical geometry subcommand: extract-adapted. Extracted embeddings are separate from the adapted policy-evaluation artifact root."
+    },
+    {
+      "id": "geometry_layout_v1",
+      "title": "Geometry artifact layout migration and preservation audits",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/21_embedding_geometry_correction.md"
+      ],
+      "entrypoints": [
+        "tools/check_multimodal_geo_helpfulness_geometry_layout.py",
+        "tools/run_multimodal_geo_helpfulness_geometry.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_geometry.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_geometry_layout_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/geometry_layout_v1"
+      ],
+      "status": "maintenance",
+      "notes": "Canonical geometry subcommand validate checks organization and hashes without evaluation. The older sealed layout catalog remains unchanged."
+    },
+    {
+      "id": "project_structure_v1",
+      "title": "Project-wide study catalog, compatibility entrypoints, and preservation audits",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/22_project_structure.md"
+      ],
+      "entrypoints": [
+        "tools/check_multimodal_geo_helpfulness_studies.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_study_catalog.py",
+        "multimodal/geo_helpfulness_compat.py"
+      ],
+      "configs": [
+        "configs/multimodal_geo_helpfulness_studies_v1.json"
+      ],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/project_structure_v1"
+      ],
+      "status": "maintenance"
+    }
+  ],
+  "shared_modules": [
+    "multimodal/geo_helpfulness_router_numeric.py",
+    "multimodal/geo_helpfulness_router_m4_common.py",
+    "multimodal/geo_helpfulness_router_metrics.py",
+    "multimodal/geo_helpfulness_router_selection.py",
+    "multimodal/geo_helpfulness_router_heuristics.py",
+    "multimodal/geo_helpfulness_router_uncertainty.py",
+    "multimodal/geo_helpfulness_study_catalog.py"
+  ],
+  "legacy_tools": [
+    {
+      "path": "tools/plot_multimodal_embedding_geometry.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "overview",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/check_geometry_disagreements.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "disagreements",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/evaluate_joint_geometry_policy.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "validation",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/evaluate_joint_geometry_cleaned_test.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "cleaned-test",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/evaluate_joint_geometry_full_reference.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "full-reference",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/evaluate_joint_geometry_k5.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "k5",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/evaluate_joint_geometry_k_sweep.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "k-sweep",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/evaluate_joint_geometry_thresholds.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "thresholds",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/evaluate_joint_geometry_adapted.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "adapted",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/extract_adapted_geometry_embeddings.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "extract-adapted",
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/embedding_geometry_figures.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "overview",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/geometry_disagreement_figures.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "disagreements",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/joint_geometry_test_report.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "cleaned-test",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/joint_geometry_full_reference_report.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "full-reference",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/joint_geometry_k5_report.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "k5",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/joint_geometry_k_sweep_report.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "k-sweep",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/joint_geometry_threshold_report.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "thresholds",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/joint_geometry_threshold_selection.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "thresholds",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/joint_geometry_adapted_report.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_geometry.py",
+      "canonical_subcommand": "adapted",
+      "role": "sealed-internal-helper-not-standalone-cli"
+    },
+    {
+      "path": "tools/analyze_confidnet_relaxed_guardrails.py",
+      "canonical_entrypoint": "tools/run_multimodal_geo_helpfulness_confidnet_relaxed_guardrails.py",
+      "canonical_subcommand": null,
+      "role": "sealed-executable-implementation"
+    },
+    {
+      "path": "tools/plot_joint_tcp_router_review.py",
+      "canonical_entrypoint": "tools/plot_multimodal_geo_helpfulness_joint_tcp_review.py",
+      "canonical_subcommand": null,
+      "role": "aggregate-only-review-implementation"
+    },
+    {
+      "path": "tools/diagnose_multimodal_geo_confidnet_oof_parity.py",
+      "canonical_entrypoint": "tools/diagnose_multimodal_geo_helpfulness_confidnet_oof_parity.py",
+      "canonical_subcommand": "run",
+      "role": "historical-training-recovery-not-read-only"
+    }
+  ]
+}

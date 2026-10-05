@@ -1,0 +1,130 @@
+{
+  "schema_version": "geo_helpfulness.confidnet_fold4_config.v1",
+  "study_id": "confidnet_fold4_v1",
+  "training_seeds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "expert_modes": [
+    "image",
+    "geo",
+    "raw"
+  ],
+  "fold_ids": [
+    3
+  ],
+  "confidence_supervision": "heldout_fold4_from_fixed_folds123_experts",
+  "router_confidence_inputs": "in_sample_confidnet_predictions_on_heldout_fold4",
+  "confidence_feature": "paired_frozen_expert_penultimate_relu",
+  "confidence_input_dim": 256,
+  "target": "native_t1_true_class_probability",
+  "confidence_parameters": {
+    "hidden_widths": [
+      400,
+      400,
+      400,
+      400
+    ],
+    "epochs": 500,
+    "batch_size": 128,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0,
+    "optimizer": "adam",
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "device": "cpu",
+    "dtype": "float32",
+    "activation": "relu",
+    "output_activation": "sigmoid",
+    "loss": "mse",
+    "dropout": 0.0,
+    "normalization": "none",
+    "shuffle": true,
+    "early_stopping": false,
+    "checkpoint": "final_epoch",
+    "selection": "none",
+    "num_threads": 1,
+    "zero_gradient_patience": 5,
+    "prediction_convention": "native_float32"
+  },
+  "router_base_variant": "ablation_numeric25",
+  "router_augmented_features": [
+    "image_tcp_hat",
+    "geo_tcp_hat",
+    "raw_tcp_hat"
+  ],
+  "router_parameters": {
+    "n_estimators": 500,
+    "max_depth": 4,
+    "min_samples_leaf": 5,
+    "max_features": 0.5,
+    "bootstrap": true,
+    "criterion": "log_loss",
+    "class_weight": null,
+    "n_jobs": 1,
+    "oob_score": false,
+    "max_samples": null
+  },
+  "target_order": [
+    "rescue",
+    "harm",
+    "both_correct",
+    "both_wrong"
+  ],
+  "policies": [
+    "fusion",
+    "mcp_difference_positive",
+    "tcp_difference_positive",
+    "rf_baseline",
+    "rf_augmented"
+  ],
+  "policy_comparison": "strict_greater_than_zero_on_geo_fusion_disagreements",
+  "threshold_selection": true,
+  "guardrail_selection": true,
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20260826,
+    "unit": "whole_plot_all_seed_realizations",
+    "stratified": false,
+    "interval": "percentile_95"
+  },
+  "expert_updates": false,
+  "validation_selection": true,
+  "locked_test_access": false,
+  "optional_direct_embeddings": false,
+  "optional_in_sample_control": false,
+  "optional_true_tcp_router": false,
+  "optional_confidence_cross_fitting": false,
+  "evidence_status": "exploratory_reused_development_validation",
+  "verification": {
+    "native_float32": "exact_serialized_state_replay",
+    "portable_float64": "reported_diagnostic_not_tolerance_gate",
+    "final_verification_failure": "preserve_state_history_and_pause"
+  },
+  "validation_expert": "same_fold3_producer_as_confidence_training",
+  "numeric_preprocessing_fit": "fold4_only_using_existing_temperature_and_transform_recipe",
+  "train_rows": 852,
+  "validation_rows": 822,
+  "guardrails": {
+    "minimum_plots": [
+      20,
+      10,
+      0
+    ],
+    "harm_numerators": [
+      5,
+      7,
+      9
+    ],
+    "harm_denominator": 10,
+    "minimum_coverage": 0.01,
+    "require_positive_net": true,
+    "threshold_rule": "existing_relaxed_RF_common_across_seeds",
+    "comparison": "strict_gt_on_disagreements"
+  }
+}

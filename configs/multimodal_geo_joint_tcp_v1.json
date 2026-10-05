@@ -1,0 +1,209 @@
+{
+  "additional_embedding_scaling": false,
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20260826,
+    "selection_adjusted": false,
+    "unit": "whole_plot_all_images_all_seed_realizations"
+  },
+  "configs": [
+    {
+      "auxiliary_weight": 0.0,
+      "config_id": "joint__numeric25__lambda_0",
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 0.1,
+      "config_id": "joint__numeric25__lambda_0p1",
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 1.0,
+      "config_id": "joint__numeric25__lambda_1",
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 10.0,
+      "config_id": "joint__numeric25__lambda_10",
+      "input_dim": 25,
+      "input_id": "numeric25",
+      "variant": "ablation_numeric25",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 0.0,
+      "config_id": "joint__numeric25_embeddings__lambda_0",
+      "input_dim": 1241,
+      "input_id": "numeric25_embeddings",
+      "variant": "ablation_numeric25",
+      "with_embeddings": true
+    },
+    {
+      "auxiliary_weight": 0.1,
+      "config_id": "joint__numeric25_embeddings__lambda_0p1",
+      "input_dim": 1241,
+      "input_id": "numeric25_embeddings",
+      "variant": "ablation_numeric25",
+      "with_embeddings": true
+    },
+    {
+      "auxiliary_weight": 1.0,
+      "config_id": "joint__numeric25_embeddings__lambda_1",
+      "input_dim": 1241,
+      "input_id": "numeric25_embeddings",
+      "variant": "ablation_numeric25",
+      "with_embeddings": true
+    },
+    {
+      "auxiliary_weight": 10.0,
+      "config_id": "joint__numeric25_embeddings__lambda_10",
+      "input_dim": 1241,
+      "input_id": "numeric25_embeddings",
+      "variant": "ablation_numeric25",
+      "with_embeddings": true
+    },
+    {
+      "auxiliary_weight": 0.0,
+      "config_id": "joint__no_pairs79__lambda_0",
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 0.1,
+      "config_id": "joint__no_pairs79__lambda_0p1",
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 1.0,
+      "config_id": "joint__no_pairs79__lambda_1",
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 10.0,
+      "config_id": "joint__no_pairs79__lambda_10",
+      "input_dim": 79,
+      "input_id": "no_pairs79",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": false
+    },
+    {
+      "auxiliary_weight": 0.0,
+      "config_id": "joint__no_pairs79_embeddings__lambda_0",
+      "input_dim": 1295,
+      "input_id": "no_pairs79_embeddings",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": true
+    },
+    {
+      "auxiliary_weight": 0.1,
+      "config_id": "joint__no_pairs79_embeddings__lambda_0p1",
+      "input_dim": 1295,
+      "input_id": "no_pairs79_embeddings",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": true
+    },
+    {
+      "auxiliary_weight": 1.0,
+      "config_id": "joint__no_pairs79_embeddings__lambda_1",
+      "input_dim": 1295,
+      "input_id": "no_pairs79_embeddings",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": true
+    },
+    {
+      "auxiliary_weight": 10.0,
+      "config_id": "joint__no_pairs79_embeddings__lambda_10",
+      "input_dim": 1295,
+      "input_id": "no_pairs79_embeddings",
+      "variant": "ablation_no_pairs79",
+      "with_embeddings": true
+    }
+  ],
+  "configuration_count": 16,
+  "embedding_source": "paired_frozen_expert_image_l2_1152_and_producer_standardized_geo64",
+  "evidence_status": "exploratory_reused_development_validation",
+  "expert_updates": false,
+  "fit_count": 64,
+  "harm_denominator": 10,
+  "harm_numerator_grid": [
+    5,
+    7,
+    9
+  ],
+  "locked_test_access": false,
+  "minimum_coverage_fraction": 0.01,
+  "minimum_plots_grid": [
+    20,
+    10,
+    0
+  ],
+  "parameters": {
+    "activation": "relu",
+    "batch_size": 128,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "bias_weight_decay": 0.0,
+    "checkpoint": "final_epoch",
+    "class_weighting": false,
+    "device": "cpu",
+    "dropout": 0.1,
+    "dtype": "float32",
+    "early_stopping": false,
+    "epochs": 300,
+    "eps": 1e-08,
+    "hidden_width": 32,
+    "learning_rate": 0.001,
+    "num_threads": 1,
+    "optimizer": "adamw",
+    "scheduler": null,
+    "shuffle": true,
+    "state_activation": "softmax",
+    "tcp_activation": "sigmoid",
+    "weight_decay": 0.001
+  },
+  "positive_net_required": true,
+  "schema_version": "geo_helpfulness.joint_tcp_router_config.v1",
+  "score_dtype": "float64_after_native_float32_inference",
+  "study_id": "joint_tcp_router_v1",
+  "target_order": [
+    "rescue",
+    "harm",
+    "both_correct",
+    "both_wrong"
+  ],
+  "tcp_order": [
+    "fusion",
+    "geo"
+  ],
+  "tcp_target": "authoritative_native_t1_true_class_probability",
+  "training_seeds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "verification": {
+    "native_float32": "exact_serialized_state_replay",
+    "portable_float64": "diagnostic_only"
+  },
+  "weight_selection": "none_report_all"
+}

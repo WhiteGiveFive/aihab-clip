@@ -1,0 +1,26 @@
+{
+  "study_id": "confidnet_oof_relaxed_guardrails_v1",
+  "parent_study_id": "confidnet_oof_v1_replay_v2",
+  "arms": ["baseline", "augmented"],
+  "training_seeds": [1, 2, 3, 4],
+  "minimum_plots_grid": [20, 10, 0],
+  "harm_numerator_grid": [5, 7, 9],
+  "harm_denominator": 10,
+  "minimum_coverage_fraction": 0.01,
+  "positive_net_required": true,
+  "score": "q_rescue_minus_q_harm",
+  "comparison": "strict_gt_on_geo_fusion_disagreements",
+  "selection_split": "development_validation",
+  "selection": "exact_prior_relaxed_RF_selector_one_threshold_per_arm_and_setting_across_seeds",
+  "candidate_rule": "never_zero_midpoints_between_all_distinct_positive_scores",
+  "tie_break": ["maximum_net", "minimum_harms", "minimum_actions", "maximum_threshold"],
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20260826,
+    "unit": "unstratified_whole_plot_all_images_all_seeds",
+    "selection_adjusted": false
+  },
+  "model_fitting": false,
+  "cleaned_test_access": false,
+  "independent_confirmation": false
+}

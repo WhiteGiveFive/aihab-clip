@@ -24,7 +24,17 @@ made, or a step-specific implementation record is created.
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
 | Current method status | M1–M4 complete; primary M4 feasibility is no-go, with common C=0.1 and never-intervene fallback; ablations are inconclusive and are not promoted; M5/M6 not started |
-| Last updated | 2026-09-22 |
+| Last updated | 2026-10-01 |
+
+The latest completed exploration compares pretrained and habitat-adapted image
+geometry for selective geo correction; see
+[record 21](21_embedding_geometry_correction.md). Adaptation improves the
+cleaned-test correction point estimates but weakens validation rescue/harm
+ranking. It does not establish an independent gain or change the M4 decision.
+The [current artifact organization](#current-experimental-artifact-organization)
+now covers all nine geometry studies alongside the earlier router studies.
+The [project-wide naming index](22_project_structure.md) covers every milestone
+and exploratory study, with a consistent geometry command interface.
 
 ## Contents
 
@@ -36,6 +46,7 @@ made, or a step-specific implementation record is created.
 - [Proposed system](#proposed-system)
 - [Implementation roadmap](#implementation-roadmap)
 - [Proposed code and artifact layout](#proposed-code-and-artifact-layout)
+- [Current experimental artifact organization](#current-experimental-artifact-organization)
 - [Leakage-control contract](#leakage-control-contract)
 - [Evaluation and reporting protocol](#evaluation-and-reporting-protocol)
 - [Risks and mitigations](#risks-and-mitigations)
@@ -887,6 +898,71 @@ multimodal_artifacts/
     └── locked_test/
 ```
 
+### Current experimental artifact organization
+
+Completed experiments use the same versioned artifact root:
+`multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/`.
+The protocol tree above describes the original milestone workflow; separately
+approved router, confidence and geometry experiments each have their own
+versioned study directory under this root.
+
+| Location | Responsibility |
+|---|---|
+| `dev_plans/reliability_aware_geo_fusion/README.md` | Living method status, decisions and study index |
+| Numbered records `01_…md` through `22_…md` in this directory | Development decisions, protocols, results interpretation, commands and artifact links |
+| `configs/multimodal_geo_*.json` / `.yaml` | Declared experiment settings and artifact paths |
+| `multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/<study_id>/` | Generated results, predictions, metadata, selections, manifests, receipts, figures and scored reports |
+| `multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/adapted_geometry_v1/embeddings/` | Shared adapted reference/query embedding caches and extraction provenance |
+| `multimodal_artifacts/locked_test_registry/cs/gse_100m_cleaned_test/events/` | Append-only cleaned-test reservations and completed score events |
+| Dated directories under `dev_plans/reliability_aware_geo_fusion/reports/` | Historical presentation paths; geometry entries are compatibility directory links to canonical bundles |
+
+All nine geometry bundles were relocated on **2026-10-01**, including the
+initial embedding plots, disagreement diagnostics, fixed correction rules,
+reference-bank and neighborhood comparisons, harm-constrained thresholds, and
+adapted-encoder comparison. The [complete inventory and findings](21_embedding_geometry_correction.md)
+and [machine-readable layout catalog](../../configs/multimodal_geo_geometry_layout_v1.json)
+identify each canonical directory and original entrypoint.
+
+The relocation preserves the sealed bundles' internal layouts and every
+original byte. Directory aliases retain paths recorded in source hashes and
+registry events; date-name aliases in the artifact root also preserve relative
+links between the original reports. These aliases are compatibility paths,
+not additional result copies or new experiments. The
+[migration manifest](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/geometry_layout_v1/migration_manifest.json)
+records the original and canonical filenames, hashes, sizes, modification times,
+source bindings and unchanged registry snapshot.
+
+For new experiments, write outputs to a **new versioned study directory** under
+this artifact root and pass that path explicitly to the runner. Keep the
+tracked development record and README links here. Reuse the established
+`multimodal/` implementation and `tools/` entrypoint convention for new code;
+existing geometry implementations remain at their sealed paths because the
+completed studies fingerprint those files. Do not rewrite old receipts,
+source paths or code to make them appear newly produced.
+
+The [geometry reproduction guide](21_embedding_geometry_correction.md#reproducing-the-geometry-experiments-and-results)
+records environment/input requirements, exact canonical commands, expected
+metrics, and the distinction between saved-run verification and recomputation.
+It also documents the current limits of a fresh cleaned-test rebuild.
+
+The [project-wide study catalog](../../configs/multimodal_geo_helpfulness_studies_v1.json)
+now maps every milestone, study continuation, review directory and historical
+naming exception. The canonical geometry runner is
+[`run_multimodal_geo_helpfulness_geometry.py`](../../tools/run_multimodal_geo_helpfulness_geometry.py),
+backed by [`multimodal/geo_helpfulness_geometry.py`](../../multimodal/geo_helpfulness_geometry.py).
+Its subcommands replace the separate `plot_*`, `check_*`, `evaluate_*` and
+`extract_*` names as the preferred public interface. The original scripts are
+retained as fingerprinted implementations. ConfidNet guardrail and joint-TCP
+review helpers also have canonical names; see the
+[complete naming contract](22_project_structure.md).
+
+Verify the current organization without fitting, rescoring or repeating OOF:
+
+```bash
+python tools/run_multimodal_geo_helpfulness_geometry.py validate
+python tools/check_multimodal_geo_helpfulness_studies.py
+```
+
 ## Leakage-control contract
 
 | Information | Target construction | Router feature use | Model/threshold selection | Locked test reporting |
@@ -1032,6 +1108,15 @@ Report overall and per habitat:
 | M5 Test-time correction | Deferred after no-go | Frozen primary policy exists but makes no interventions and fails the development gate | Do not proceed under this failed gate |
 | Initial ConfidNet study | Complete; separate development experiment, negative fixed-recipe result | Twelve same-training-set confidence fits; image/fusion have zero training errors and their confidence heads saturate near one; failure AP/AUC below MCP in every expert/seed; TCP comparator makes zero interventions, leaving accuracy at 71.0462% | Preserve the result; diagnose training saturation before a separately declared follow-up; no augmented-router training or cleaned-test access |
 | OOF-supervised ConfidNet study | Complete; negative matched-router result | Twelve confidence heads and eight RF routers verified. Accuracy: numeric25 71.9282%, TCP-augmented28 69.5560%; paired difference −2.3723 pp, 95% CI [−4.5736, −0.3865]. Large confidence training-to-validation gaps; direct TCP also loses to fusion | Preserve the completed development result and original pause; distinguish confidence overfitting from producer-representation transfer in any separately approved follow-up |
+| OOF ConfidNet relaxed-threshold sensitivity | Complete; development-only follow-up | Prior nine-setting RF guardrail grid applied to both saved routers. Augmented accuracy rises to 71.7762%; equally selected numeric25 reaches 72.0499%. Paired difference −0.2737 pp, conditional CI [−1.5885, +0.9896]. All 18 selections, independent audits, and immutable reuse pass | Zero was a poor augmented-router threshold, but estimated TCP still gives no demonstrated matched-router benefit; preserve validation-selection caveat and original M4 no-go |
+| Fixed-expert fold-4 ConfidNet study | Complete; negative matched-router result | Confidence heads and numeric25/28 RF routers fit on fold 4; the same three-fold-trained experts produce validation inputs. Numeric25 relaxed accuracy 72.0499%; augmented has no feasible threshold under all nine settings and retains fusion at 71.3808%. Paired difference −0.6691 pp, conditional CI [−1.6299, +0.3041]. Independent audits, 130-file immutable reuse, and 166 focused tests pass | Fixed producing experts do not resolve the failure in this setup; preserve the confidence generalization gap and same-row router-training caveat, without attributing the earlier result to a single cause |
+| Frozen fold-4 cleaned-test application | Complete; user-requested exploratory application | Same experts and saved fold-4 fits on 1,347 images / 531 plots. Fusion 73.1069%, numerical relaxed router 73.1626% (+3 pooled net), augmented relaxed router retains fusion. Highest estimated TCP among all three experts: 72.4388%, −0.6682 pp versus fusion, conditional CI [−1.9071, +0.5924]; 158 rescues / 194 harms | Preserve the frozen negative TCP comparison and negligible numerical gain; no test threshold search, legacy-expert substitution, or M4 gate revision |
+| Fixed joint-geometry correction | Complete; negative cleaned-test transfer | Frozen image and geo nearest-reference scores must both favor geo. Validation accuracy improves by +1.5815 pp, but the matched September 15 cleaned-test comparison falls to 72.3645% versus fusion 74.3133% and RF 75.1670%; mean 37 rescues versus 63.25 harms per seed | Preserve the unchanged 3,378-image reference bank and rule; validation and test use different expert fitting sets. No test-driven threshold or reference-bank selection; original M4 no-go unchanged |
+| Joint geometry with all development references | Complete; user-requested bank expansion | Same experts, test images and rule, with all 4,200 development images / 1,625 plots as references. Accuracy 71.8448%, weighted F1 0.7096; mean 39.5 rescues and 72.75 harms per seed. Difference from the 3,378-image bank is −0.5197 pp, conditional CI [−1.2737, +0.2065] | Retain both bank results. Expansion does not recover the earlier validation gain; this follow-up was requested after the first test result and is not independent confirmation |
+| Joint geometry with five nearest plots | Complete; user-requested K5 sensitivity | Mean distance to five distinct reference plots per candidate class; retain fusion if either class has fewer than five plots. Validation accuracy 73.3577%; cleaned test 73.8122% / 73.7194% with 3,378 / 4,200 references, improving on K1 by +1.4477 / +1.8745 pp but still below fusion 74.3133% and frozen RF 75.1670%. Full-cohort K1 controls with matched reference support separate fallback from neighborhood effects | Preserve both banks and all controls. Conditional test K5-minus-fusion intervals include zero; validation gain is not independent confirmation. No threshold fitting, policy promotion or M4 change |
+| Joint geometry with shared effective K | Complete; approved K=1/5/10/20 sweep | Shared K=min(requested K, both candidate reference-plot counts). Validation accuracy 72.6277/73.1752/72.9319/71.7457%; cleaned test with all 4,200 references 71.8448/73.4224/73.9607/74.1277%. K20 still trails fusion 74.3133% and RF 75.1670%; mean 52 rescues versus 54.5 harms. Fallback K5 loses to strict K5 on both cohorts | Increasing K helps test accuracy but harms validation beyond K5 and reduces macro F1. Preserve every K, strict-K5 comparator, actual-K counts and conditional paired intervals; no winner selection or M4 change |
+| Validation-selected geometry thresholds | Complete; harm limits do not transfer | Strict K5/K10 with S=min(A_image,A_geo); 18 validation selections reuse the router's 20/10/0-plot × 0.5/0.7/0.9 harm grid and 1% coverage guard. Four distinct thresholds result; 0.7/0.9 and all plot minima coincide. Test accuracy ranges 73.9792–74.6474% with 3,378 references and 73.8679–74.3875% with 4,200, versus fusion 74.3133% and RF 75.1670% | Every test policy exceeds its validation harm cap; all paired accuracy intervals versus fusion include zero, and weighted/macro F1 remain below fusion. Preserve all frozen policies and both banks; no test reselection or M4 change |
+| Habitat-adapted image geometry | Complete; better test correction, weaker validation accuracy/ranking | Four development-train-fitted encoders embed both references and queries; no OOF diagnostics. Strict zero-K5/K10 validation accuracy is 72.2932/72.0195%, below pretrained geometry. All 18 validation selections reduce to two thresholds; selected test accuracy is 75.4454/75.6682% with 3,378 references and 75.7053/75.5568% with 4,200, versus fusion 74.3133% and RF 75.1670% | Adaptation reduces harmful interventions on test; 0.7/0.9 caps hold pooled, while 0.5 caps fail. Test weighted F1 improves over fusion but macro F1 remains lower; all selected accuracy intervals versus fusion include/touch zero, and all RF contrasts include zero. Preserve cohort reversal, historical-cache lineage limits, both banks and original M4 no-go |
 | M6 Gated residual fusion | Deferred after no-go | The primary router does not meet the declared feasibility criteria | Do not proceed under this failed gate |
 | M7 Robust confirmation | Planned | Selected routers have matched multi-seed internal holdout evidence, not independent confirmation | Seek independent data; do not reinterpret selected validation as confirmation |
 | M8 Integration and reproducibility | Partially delivered through M4 | Reproducible milestone runners, immutable artifacts, and 751 focused regression cases exist | Preserve M4 integration; broader method integration remains deferred |
@@ -1062,6 +1147,20 @@ results, unresolved issues, and completion evidence for that step.
 | [`12_confidnet_initial_experiment.md`](12_confidnet_initial_experiment.md) | Separate frozen-expert confidence estimation and direct TCP policy | Complete: 12 heads, saturated image/fusion estimates and zero TCP interventions; independent metric/state audits, 61-file immutable reuse and 75 focused tests verified; no validation selection or cleaned-test access |
 | [`13_confidnet_oof_proposal.md`](13_confidnet_oof_proposal.md) | Approved pooled expert-OOF confidence supervision and numerical-router setup | Approved scope delivered with native-replay amendment; router feature sets fixed at 25 versus 28 |
 | [`14_confidnet_oof_experiment.md`](14_confidnet_oof_experiment.md) | Execution record for the approved OOF study | Complete: 12 heads, 8 routers, negative augmented-router result, independent audits and 191-file immutable reuse verified; 305 tests passed |
+| [`15_confidnet_relaxed_guardrails.md`](15_confidnet_relaxed_guardrails.md) | User-requested relaxed selection on the saved numeric25/augmented28 routers | Complete: 18 selected policies, 78 selector tests, independent 12,726-candidate and 2,000-bootstrap audits, eight-file immutable reuse; no new fitting or cleaned-test access |
+| [`16_confidnet_fold4_experiment.md`](16_confidnet_fold4_experiment.md) | Approved fold-4 confidence/router fitting with fixed producing experts and relaxed selection | Complete: 12 confidence heads, 8 RF routers, no feasible augmented threshold; independent model/metric/provenance audits, 130-file immutable reuse and 166 focused tests pass; development only |
+| [`17_confidnet_fold4_cleaned_test.md`](17_confidnet_fold4_cleaned_test.md) | User-requested cleaned-test application of the saved fold-4 routers and highest-estimated-TCP expert selector | Complete: all four fixed expert bundles, 26 frozen policies, negative direct-TCP gain; 130 focused tests, independent audits, 35-file immutable reuse, and sixth append-only test event verified |
+| [`18_joint_tcp_router_exploration.md`](18_joint_tcp_router_exploration.md) | Joint four-state/TCP supervision with 25/79 features, OOF embeddings, and matched CE-only controls | Complete: 64 fixed-budget fits, 144 selected policies, 360 paired contrasts; no consistent auxiliary-TCP routing benefit and substantial embedding-model overfit. Independent audits, exact refits, 183 distinct regression checks, and 540-file immutable reuse pass; development only |
+| [`19_joint_tcp_router_cleaned_test.md`](19_joint_tcp_router_cleaned_test.md) | Apply all saved joint TCP routers and validation-selected thresholds to cleaned test using their matching full-development-train experts | Complete: all 64 routers applied; fusion 73.7379%, numerical-25 relaxed policies 73.8679–74.3504%, embedding policies at or below fusion. No clear matched auxiliary-TCP benefit; all router-versus-fusion accuracy intervals include zero. 156 tests, independent audits, 45-file immutable reuse and seventh append-only test event verified |
+| [`20_joint_tcp_router_capacity.md`](20_joint_tcp_router_capacity.md) | Larger shared MLPs with auxiliary TCP supervision, both non-embedding input sets and matched CE-only controls | Complete: 128 new fits plus 32 reused `[32]` controls; exact September 15 legacy experts reproduce fusion 74.3133%. At minimum 20 plots / H≤0.7R, larger numerical routers reach 74.109–74.722%, below `[32]` CE-only 74.814% and matched RF 75.130%. All larger configurations worsen held-out state NLL; TCP gains are mixed. Every setting retained; no winner promoted |
+| [`21_embedding_geometry_correction.md`](21_embedding_geometry_correction.md) | Nine-study geometry exploration and correction record | Complete: initial geometry/disagreement diagnostics, K and reference-bank comparisons, validation-fitted harm thresholds, and adapted-encoder ablation. Canonical artifact inventory and byte-preserving layout migration verified; no experiments rerun for reorganization |
+| [`22_project_structure.md`](22_project_structure.md) | Project-wide naming and structure audit | Complete: canonical geometry and helper entrypoints, full study/source/artifact catalog, structural verification and preserved historical provenance; no experiment reruns |
+| [Geometry policy validation](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_v1/report.md) and [matched cleaned-test comparison](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_cleaned_test_v1/report.md) | Separate fixed geometry rule; not M5/M6 | Complete: no learned router or threshold search. Validation 71.0462% → 72.6277%; historical cleaned-test fusion 74.3133% → 72.3645%. Geometry minus fusion accuracy CI [−3.8189, −0.1307] pp; geometry minus RF [−4.5770, −0.9992] pp. Frozen reference bank, matched historical predictions, per-habitat results and append-only test receipt retained |
+| [Full development reference bank](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_full_reference_cleaned_test_v1/report.md) | User-requested expansion from 3,378 to all 4,200 references | Complete: identical experts and strict-positive rule; accuracy 71.8448% versus 72.3645% with the original bank, fusion 74.3133% and RF 75.1670%. Six-method comparison, changed-action analysis, paired plot intervals and a separate test receipt preserve the earlier evaluation |
+| [Five-neighbor geometry correction](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_k5_correction_v1/report.md) | User-requested K5 comparison on validation and cleaned test with both reference banks | Complete: validation improves from fusion 71.0462% to 73.3577%; test K5 reaches 73.8122% / 73.7194% versus K1 72.3645% / 71.8448%. With all 4,200 references, mean 49.5 rescues and 57.5 harms leave a −0.5939 pp difference from fusion, conditional CI [−2.4800, +1.3109]. Full-cohort support controls, per-class metrics, 22 paired intervals and an additional test event preserve prior evaluations |
+| [Shared-neighborhood K sweep](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_shared_k_sweep_v1/report.md) | Approved K=1/5/10/20 with matched smaller-neighborhood fallback; validation uses training references and cleaned test uses all development references | Complete: test K20 accuracy 74.1277%, difference from fusion −0.1856 pp, conditional CI [−2.0502, +1.7111]. Validation K20 falls 1.4294 pp below fallback K5. New fallback K5 adds 1 rescue and 17 harms across four test seeds relative to strict K5. All 68 cohort/model/seed metric rows, effective-K usage, per-habitat results and 44 paired intervals saved. Independent distance, metric and bootstrap audits plus completed-run reuse passed; prior evaluations preserved |
+| [Validation-selected geometry thresholds](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_thresholds_v1/report.md) | User-approved strict K5/K10 threshold fitting on validation, then fixed application to both test reference banks | Complete: all 18 selections feasible, four distinct thresholds. K10/0.5 with 3,378 references yields +0.3341 pp versus fusion, conditional CI [−1.1229, +1.7950]; K10/0.7 or 0.9 with 4,200 yields +0.0742 pp, CI [−1.7071, +1.8777]. All test harm caps fail transfer. Independent audits reproduced 3,213 curve records, 284 model/seed metric records and all 288 intervals; geometry/provenance checks and completed-run reuse passed. Previous artifacts preserved |
+| [Adapted versus pretrained geometry](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_adapted_encoder_v1/report.md) | User-approved encoder comparison on validation and cleaned test, with strict K5/K10 and both test banks; no OOF diagnostics | Complete: four adapted towers fitted only on 3,378 images, with exact replay of all validation embeddings. Zero-K5 test accuracy improves by +1.5961/+1.9859 pp over pretrained geometry for 3,378/4,200 references; selected policies reach 75.4454–75.7053%. Independent checks reproduce 2,232 candidate records, 284 model/seed metric records, 6,000 class-distance/neighbor checks and all 408 paired intervals. All policies retained; no test reselection or M4 change |
 | `06_gated_fusion.md` | M6 | Not created |
 | `07_evaluation_and_confirmation.md` | M7 | Not created |
 
@@ -1107,19 +1206,59 @@ corresponding record exists.
 | D033 | 2026-09-22 | Approved setup; execution paused | Fit pooled expert-OOF ConfidNets and compare an RF using 25 numerical summaries with an RF using those summaries plus three estimated TCPs | First image-head verification exceeds float64 replay tolerance on one training row (1.19913e-6 versus 1e-6), while native float32 JSON replay is exact. Preserve the pause and training-only diagnostic; obtain approval for the proposed verification amendment before continuing. No router or validation results yet |
 | D034 | 2026-09-22 | User-approved verification amendment | Require exact native float32 confidence replay from saved JSON weights; record independent float64 differences without an absolute-tolerance rejection | Continue in confidnet_oof_v1_replay_v2, preserving the original declaration and pause. Scientific settings and native predictions are unchanged; failed final checks now retain model/history. All 305 focused tests pass before launch |
 | D035 | 2026-09-22 | Recorded exploratory outcome | Complete the approved OOF-supervised confidence and numeric25/28 RF comparison under the native-replay amendment | Augmented accuracy 69.5560% versus matched numeric25 71.9282%; −2.3723 pp with paired whole-plot CI [−4.5736, −0.3865], lower in all four seeds. Training failure AP near 0.997 does not transfer; direct TCP also underperforms fusion. Preserve this negative pipeline result; no cleaned-test evaluation, retuning, or M4 gate change |
+| D036 | 2026-09-22 | User-requested exploratory outcome | Apply the previously established relaxed RF threshold grid to both saved OOF ConfidNet router arms, with one threshold per arm/setting across all seeds | At H≤0.7R/0.9R, augmented accuracy becomes 71.7762%, versus matched numeric25 72.0499%; the 0.5 cap has no feasible augmented threshold. Plot relaxation changes nothing. Conditional paired interval spans zero; no new models, cleaned-test access, or M4 gate change |
+| D037 | 2026-09-24 | User-approved exploratory outcome | Fit ConfidNet and matched numeric25/28 RF routers on fold 4 only, using frozen folds-1–3 experts for both fitting inputs and validation; retain native replay and the nine-setting relaxed rule | Augmented has no feasible threshold and retains fusion at 71.3808%; relaxed numeric25 reaches 72.0499%. Confidence training failure AP near 0.997–0.999 falls to 0.45–0.54 on validation, below MCP. Fixed producers do not solve this setup's generalization failure; smaller fitting data and same-row confidence/router fitting remain confounded. No cleaned-test scoring or M4 gate change |
+| D038 | 2026-09-24 | User-requested exploratory outcome | Apply the saved fold-4 pipeline to cleaned test with the same folds-1–3 experts and transferred thresholds; compare choosing the highest native estimated TCP among image, geo and fusion, with ties favoring fusion/geo/image | Three-expert TCP accuracy 72.4388% versus fusion 73.1069%; numerical relaxed 73.1626% gives only +3 pooled net, while augmented relaxed retains fusion. No refitting, recalibration or test selection. Independent audits verify all policies and the sixth registered evaluation; historical test reuse and M4 no-go remain explicit |
+| D039 | 2026-09-28 | User-requested exploratory outcome | Apply all 64 saved joint routers, all 144 validation-selected policies and all 16 fixed-zero policies to cleaned test with the matching full-development-train experts | Fusion is 73.7379%; numerical-only routing gives modest positive point gains, while embedding policies are at or below fusion. Auxiliary-versus-CE gains remain uncertain. Preserve all weights and transferred thresholds, including fallbacks and test guardrail violations; no fitting, test selection or M4 gate change |
+| D040 | 2026-09-28 | User-approved exploratory outcome | Fit `[64,32]`, `[128,64]`, `[64,32,16]`, `[128,64,32]` across 25/79 inputs, four auxiliary weights and four seeds; compare 32 reused shallow controls and transfer frozen policies to the exact September 15 experts | 128 new fits complete; larger models overfit state and TCP targets. At minimum 20 plots / H≤0.7R all 40 joint configurations have lower point accuracy than feature-matched historical RF/LR. All 360 relaxed test gains versus fusion have accuracy intervals including zero. No architecture/weight promotion, test retuning or M4 gate change |
 
 ## Immediate next action
 
-Review the completed [OOF ConfidNet study](14_confidnet_oof_experiment.md).
-The approved twelve-head/eight-router comparison is complete: adding estimated
-TCPs reduces mean validation accuracy from 71.9282% to 69.5560%, and the direct
-TCP comparator also underperforms fusion. Confidence fits now learn the richer
-OOF supervision, but their strong training performance does not transfer to
-validation. The chosen design combines in-sample ConfidNet router features
-with transfer from fold-specific to full-train expert representations; this
-experiment cannot separate those effects. Preserve the negative result and
-its original verification-pause history. Any follow-up requires a separately
-approved design; no additional controls or retuning were run.
+Review the [completed joint-MLP capacity round](20_joint_tcp_router_capacity.md).
+All 128 new fits and 32 shallow controls were evaluated on validation and cleaned
+test. The exact September 15 expert heads and cached encoder features reproduce
+fusion at 74.3133%. Under the matched minimum-20 / H≤0.7R guardrail, larger
+numerical routers reach 74.109–74.722%, compared with `[32]` CE-only at 74.814%
+and historical numerical RF at 75.130%. All 32 larger configurations worsen
+validation/test state NLL relative to their matched shallow controls, and all
+24 supervised larger configurations worsen both experts' held-out TCP MSE.
+TCP can help relative to a larger model's own control, but this round does not
+establish a capacity benefit. Retain the complete grid and original studies;
+no architecture or weight is promoted from these exploratory results.
+
+Review the [joint TCP cleaned-test application](19_joint_tcp_router_cleaned_test.md)
+alongside its [development study](18_joint_tcp_router_exploration.md). The matching
+full-development-train fusion experts reach 73.7379% test accuracy. Numerical-25
+routers reach 73.8679–74.3504% with transferred relaxed thresholds, but all
+router-versus-fusion accuracy intervals include zero. Auxiliary TCP does not
+show a clear improvement over matched CE-only controls, and embeddings lower
+accuracy in almost every matched comparison. These results use the same 1,347
+cleaned-test images as earlier applications but different expert checkpoints.
+They retain every declared setting and do not select a winner from test results.
+
+Review the completed [frozen fold-4 cleaned-test application](17_confidnet_fold4_cleaned_test.md).
+The requested highest-estimated-TCP policy among all three experts reaches
+72.4388%, below matched fusion at 73.1069%. Its 158 rescues and 194 harms give
+−36 pooled net corrections, although the conditional gain interval includes
+zero. The numerical relaxed router gains only +0.0557 pp (+3 pooled net);
+the augmented relaxed router retains fusion. These are frozen applications
+using the same producing experts, with no test threshold selection. The
+cleaned test has been inspected repeatedly, so it is not independent confirmation.
+
+Review the completed [fixed-expert fold-4 study](16_confidnet_fold4_experiment.md)
+alongside the [pooled-OOF study](14_confidnet_oof_experiment.md) and its
+[relaxed-threshold follow-up](15_confidnet_relaxed_guardrails.md). Keeping the
+producing experts fixed does not improve the TCP-augmented router in this
+configuration: all nine guardrails choose the never-intervene fallback at
+71.3808%, while the matched relaxed numerical router reaches 72.0499%.
+Confidence heads still fit training targets closely and generalize poorly.
+This shows the failure can occur without changing expert representations;
+it does not identify the cause of the previous result, because fitting sample
+size, expert checkpoints, and optimization updates also differ. Same-row
+ConfidNet/router fitting remains a possible contributor. Threshold selection
+and reporting share development-validation, so these are exploratory results.
+Preserve all three studies and the original verification-pause history.
+Additional modeling controls require a separately approved design.
 
 Review the completed [M4 feasibility result](04_router_feasibility.md). The
 current primary method has a frozen no-go outcome; do not proceed to M5/M6,
@@ -1157,6 +1296,17 @@ retain this negative sensitivity result without additional test-driven tuning.
 
 | Date | Change |
 |---|---|
+| 2026-10-01 | Added consolidated geometry reproduction instructions to record 21: environment and input requirements, saved-run checks, fresh development computation, frozen adapted extraction, exact numerical metric example and expected outputs. Verified the four adapted headline results; documented that an isolated end-to-end cleaned-test rebuild is not yet implemented. |
+| 2026-10-01 | Audited naming across M1–M4, router variants, ConfidNet, joint-TCP and geometry; added a canonical geometry CLI/module, consistent helper entrypoints, full study catalog and record 22. Existing scientific code/configurations and test-registry events remain unchanged; public dispatch and structure checks verified. |
+| 2026-10-01 | Standardized all nine completed geometry bundles under the versioned geo-helpfulness artifact root; added record 21, a machine-readable layout catalog and read-only verification. Original files, source/code bindings and all cleaned-test registry entries are preserved; directory aliases keep historical paths and report links working. No fitting, threshold selection, scoring or OOF diagnostics were repeated. |
+| 2026-09-30 | Completed the approved adapted-encoder geometry comparison without OOF diagnostics. Reused four towers fitted only on 3,378 development-training images to freshly encode 4,200 development and 1,347 test images per seed; every validation embedding replays exactly. Held expert predictions, geo geometry and reference membership fixed. All 18 validation selections choose one threshold per K (K5 0.006095635; K10 0.01600631), unchanged across both test banks. Adaptation weakens validation accuracy and rescue/harm ranking but improves test correction, primarily by avoiding harmful interventions. Relaxed 0.7/0.9 test harm caps now hold pooled; 0.5 caps do not. Test accuracy and weighted F1 exceed fusion point estimates, while macro F1 stays lower and paired accuracy intervals versus fusion/RF include or touch zero. Saved both representations, fixed-zero controls, full diagnostics, 408 conditional intervals and a separate test receipt; no policy promotion or M4 change. |
+| 2026-09-30 | Completed the approved validation-threshold study with user-confirmed strict reference support for K5/K10. Selected one common threshold per K/guardrail on all 822 validation images and four seeds, reusing the router grid and exact midpoint/tie rules. Froze all 18 policies before applying both 3,378/4,200 test reference banks. The 0.7 and 0.9 caps select identical thresholds; plot relaxation changes nothing. Some K10 test accuracy point gains occur, but every test harm cap is exceeded and all accuracy intervals versus fusion include zero. Retained every setting, untuned strict baselines and RF comparison; no test adjustment or M4 change. |
+| 2026-09-30 | Completed the approved shared-K=1/5/10/20 sweep with strict-positive image/geo correction and K_eff=min(K,n_fusion_class,n_geo_class). Validation uses 3,378 training references; cleaned test uses all 4,200 development references and unchanged legacy experts/RF. Increasing K from 5 to 20 lowers validation accuracy 73.1752%→71.7457% while raising test accuracy 73.4224%→74.1277%, still below fusion 74.3133%. Macro F1 declines on both cohorts. Allowing smaller K also lowers performance relative to strict K5. Saved all settings, actual-K counts, 44 paired intervals and a separate adaptive test receipt; no selection, fitting or M4 change. |
+| 2026-09-30 | Completed the requested K5 correction evaluation with the unchanged joint-positive rule. Each class distance averages five nearest distinct reference plots; insufficient support retains fusion. Validation accuracy 73.3577%; cleaned-test accuracy 73.8122% / 73.7194% for the 3,378 / 4,200 reference banks. Both improve on K1 but remain below fusion and RF point estimates. Saved supported-K1 controls to distinguish neighborhood averaging from fallback changes, full-cohort metrics and paired plot intervals. Previous scripts, results and registry files remain unchanged; this adaptive follow-up has its own receipt. |
+| 2026-09-30 | Completed the explicitly requested all-development reference-bank evaluation. Added 822 validation references to the original 3,378, with unchanged experts, cosine k=1 distances and strict-positive joint rule. Cleaned-test accuracy is 71.8448%, −0.5197 pp versus the smaller bank and −2.4684 pp versus fusion. Mean rescues rise to 39.5 but harms to 72.75. Prior scripts/results and registry entries are preserved; a separate event records this adaptive follow-up. No threshold search or M4 change. |
+| 2026-09-30 | Completed the fixed joint-geometry rule on development validation and, at the user's request, the same cleaned-test universe and legacy experts as the September 15 report. The strict-positive image-and-geo rule keeps its 3,378-image reference bank. Test accuracy is 72.3645%, below fusion 74.3133% and frozen RF 75.1670%; all four seeds lose accuracy. Saved label-free decisions before scoring, reproduced every historical comparator, preserved all prior registry files, and appended one study event. No fitting, test tuning, or M4 gate change. |
+| 2026-09-28 | Completed `joint_tcp_router_test_v1`: all 64 frozen routers applied to cleaned test, preserving all validation thresholds. Matched fusion is 73.7379%; numerical-25 relaxed accuracy is 73.8679–74.3504%, while embedding policies are at or below fusion. All 160 router-versus-fusion accuracy intervals include zero; matched auxiliary effects remain uncertain. 156 tests, exact validation/test replay, 49,291 independent metric assertions and model/provenance audits pass. Complete-run reuse preserves all 45 application, 540 parent and 22 registry files byte-for-byte with unchanged mtimes; seventh append-only test event verified. No fitting, test selection or M4 change. |
+| 2026-09-28 | Completed `joint_tcp_router_v1`: all 64 fits, 20 frozen-producer embedding replays, 144 relaxed policies and 360 paired contrasts. Auxiliary-versus-CE accuracy differences range from -0.5170 to +0.2737 pp under relaxed selection; all 108 corresponding intervals include zero. Embedding models substantially overfit. No weight or guardrail winner selected. Independent metrics/fit audits, two exact 300-epoch refits, 183 distinct regression checks, and 540-file immutable reuse pass. An additive versioned runner corrects Markdown validation ordering while preserving every original scientific source and artifact. No cleaned-test use or change to M4. |
 | 2026-09-22 | Completed the approved initial ConfidNet experiment: twelve same-training-set heads, saturated image/fusion confidence and zero TCP-policy interventions; validation remains at 71.0462%. Independent metrics/replay and 61-file byte/mtime-preserving reuse pass; 75 focused tests passed before fitting. Documented optimization limitations and the distinct confidence/router cross-fitting choices. Original M4 and prior artifacts remain unchanged. |
 | 2026-08-24 | Created the living method specification and implementation roadmap |
 | 2026-08-24 | Replaced nested outer CV for router development with one fixed grouped development holdout plus four-fold cross-fitting inside development-train; recorded the weaker evidence status and frozen-router final-refit rule |
@@ -1179,6 +1329,11 @@ retain this negative sensitivity result without additional test-driven tuning.
 | 2026-09-22 | Approved and implemented pooled OOF ConfidNet study with 25-summary versus 28-input RF routers; 193 tests passed. Execution paused at first image-head float64 replay tolerance. Training-only diagnostic reproduces the 1.19913e-6 discrepancy on one row and exact native replay after 500 finite epochs. Original artifacts preserved; verification amendment pending approval, no router fitting or validation scoring. |
 | 2026-09-22 | User approved exact native float32 confidence replay with diagnostic float64 differences. Implemented an additive continuation that preserves the original paused study and reuses verified extraction; 305 focused tests passed before launch. Scientific recipe and 25/28 router features are unchanged. |
 | 2026-09-22 | Completed the approved OOF ConfidNet continuation: 12 heads and 8 numerical RF routers. Augmented accuracy 69.5560% versus 71.9282% baseline (−2.3723 pp, paired CI [−4.5736, −0.3865]); direct TCP 69.8601% versus fusion 71.0462%. Exact native replay, independent metrics/bootstrap/provenance audits, 364-parent checks, preservation of 1,190 prior plus 34 paused-study files, and 191-file byte/mtime-preserving reuse pass. All 305 focused tests passed; no cleaned-test scoring, retuning, or M4 change. |
+| 2026-09-22 | Completed user-requested `confidnet_oof_relaxed_guardrails_v1`: all 18 policies using the prior RF plot/harm grid. Augmented relaxed accuracy 71.7762% versus 72.0499% matched numeric25; paired −0.2737 pp, conditional CI [−1.5885, +0.9896]. Harm caps 0.7/0.9 coincide and plot minima have no effect; augmented0.5 falls back to fusion. 78 selector tests, independent full-curve/metric/bootstrap checks, eight-file repeat reuse and 191-parent preservation pass. Development selection only; no new fits or cleaned-test access. |
+| 2026-09-24 | Completed approved `confidnet_fold4_v1`: fixed folds-1–3 experts, 852 fold-4 fitting images, 822 validation images, 12 confidence heads and 8 numerical RF routers. Augmented finds no feasible threshold in the nine-setting grid; fusion fallback 71.3808% versus relaxed numeric25 72.0499%, conditional paired difference −0.6691 pp [−1.6299, +0.3041]. Confidence training-to-validation gaps persist. All 166 focused tests, exact native replay, independent metrics/models/provenance, 130-file byte/mtime reuse, 120 declared parent hashes, and preservation of 199 prior result files pass. Development only; original M4 decision unchanged. |
+| 2026-09-24 | Completed user-requested `confidnet_fold4_test_v1`: 1,347 cleaned-test images / 531 plots, the same frozen folds-1–3 experts, all four saved confidence/router sets, 26 fixed policies. Three-expert highest TCP reaches 72.4388% versus fusion 73.1069% (−0.6682 pp, conditional CI [−1.9071, +0.5924]); numerical relaxed 73.1626%, augmented relaxed never intervenes. 130 tests, independent source/image/model/metric/bootstrap audits and 35-file byte/mtime-preserving reuse pass; all prior 130 model-bundle files and sixteen registry records preserved, sixth event appended. No refitting, test threshold search, or M4 gate change. |
+
+| 2026-09-28 | Completed `joint_tcp_router_capacity_v1`: 128 new two/three-layer MLP fits plus 32 reused shallow controls, all 40 configurations on validation and the exact September 15 cleaned-test expert family. Fusion reproduces 74.3133%; larger numerical routers reach 74.109–74.722% at minimum 20 plots / H≤0.7R. Larger models overfit state and TCP targets; all relaxed test gains versus fusion have accuracy intervals including zero. All 271 tests, independent metric/bootstrap and repeat-fit audits, 971-file immutable reuse, preservation of 2,128 prior artifacts and 428 sources, and one append-only test event pass. No architecture/weight promotion or M4 gate change. |
 
 ## Related pipeline files
 
