@@ -24,13 +24,38 @@ made, or a step-specific implementation record is created.
 | Locked exploratory evaluation set | Expert-cleaned CS test set: 1,347 images from 531 plots |
 | Independent confirmation set | To be identified |
 | Current method status | M1–M4 complete; primary M4 feasibility is no-go, with common C=0.1 and never-intervene fallback; ablations are inconclusive and are not promoted; M5/M6 not started |
-| Last updated | 2026-10-01 |
+| Last updated | 2026-10-06 |
 
 The latest completed exploration compares pretrained and habitat-adapted image
 geometry for selective geo correction; see
 [record 21](21_embedding_geometry_correction.md). Adaptation improves the
 cleaned-test correction point estimates but weakens validation rescue/harm
 ranking. It does not establish an independent gain or change the M4 decision.
+A follow-up [confusion review](23_geometry_router_confusion_review.md) extends
+the September 15 report by comparing saved predictions from adapted geometry
+correction, the matched RF router and the fusion baseline, with both reference
+banks and strict K5/K10 retained. Its October 6 extension compares switching
+when either router intervenes (OR) or both intervene (AND), using the RF router
+and 4,200-reference strict-K5 geometry router. OR yields 224 rescues and 136
+harms; AND yields 61 rescues and 28 harms across four seeds. These combinations
+were proposed after examining test overlap and remain exploratory.
+A concise [research summary](25_router_research_summary.md) now brings together
+the two router designs, individual and combined performance, readable confusion
+comparisons and an oracle-gap analysis. Its design section includes feature
+groups, router training, the geometry formula and a schematic, with an explicit
+comparison to TrustScore. Missed rescues explain about 80% of the
+RF and geometry gaps; geometry's image gate rejects useful corrections while
+also blocking many harmful switches.
+A separate [adapted image/geo embedding visualization](24_adapted_embedding_visualization.md)
+shows all 4,200 development images and 1,347 cleaned-test images with PCA and
+t-SNE for each of the four cached encoders. It also shows the corresponding
+100 m geo embeddings as one point per plot: 1,625 development plots and 531
+cleaned-test plots, reusing the same geo projection across image encoder seeds.
+PCA uses development-training data to define shared development/test axes;
+joint t-SNE views are descriptive projections, with test embeddings participating
+in the layout. Geo vectors are L2-normalized without coordinate standardization.
+Image and geo axes are fitted separately, so their distances and positions are
+not directly comparable.
 The [current artifact organization](#current-experimental-artifact-organization)
 now covers all nine geometry studies alongside the earlier router studies.
 The [project-wide naming index](22_project_structure.md) covers every milestone
@@ -909,7 +934,7 @@ versioned study directory under this root.
 | Location | Responsibility |
 |---|---|
 | `dev_plans/reliability_aware_geo_fusion/README.md` | Living method status, decisions and study index |
-| Numbered records `01_…md` through `22_…md` in this directory | Development decisions, protocols, results interpretation, commands and artifact links |
+| Numbered records `01_…md` through `25_…md` in this directory | Development decisions, protocols, results interpretation, commands and artifact links |
 | `configs/multimodal_geo_*.json` / `.yaml` | Declared experiment settings and artifact paths |
 | `multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/<study_id>/` | Generated results, predictions, metadata, selections, manifests, receipts, figures and scored reports |
 | `multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/adapted_geometry_v1/embeddings/` | Shared adapted reference/query embedding caches and extraction provenance |
@@ -944,6 +969,18 @@ The [geometry reproduction guide](21_embedding_geometry_correction.md#reproducin
 records environment/input requirements, exact canonical commands, expected
 metrics, and the distinction between saved-run verification and recomputation.
 It also documents the current limits of a fresh cleaned-test rebuild.
+The later [confusion review](23_geometry_router_confusion_review.md) has a
+separate report generator that compares the saved predictions without repeating
+those experiments. The same command also reproduces the October 6 OR/AND
+combination analysis, including aggregate, seed-level and per-habitat tables
+and paired prediction exports.
+The [adapted image/geo embedding visualization](24_adapted_embedding_visualization.md)
+also has a separate plot entrypoint. It reuses the four existing image embedding
+caches and the existing 100 m geo cache, and records projection settings,
+coordinates and source provenance in `adapted_embedding_visualization_v1/`.
+The default command includes image/geo comparison panels while preserving the
+earlier saved image projections. Geo fitting uses unique plots to avoid
+weighting one location repeatedly through its photographs.
 
 The [project-wide study catalog](../../configs/multimodal_geo_helpfulness_studies_v1.json)
 now maps every milestone, study continuation, review directory and historical
@@ -1117,6 +1154,7 @@ Report overall and per habitat:
 | Joint geometry with shared effective K | Complete; approved K=1/5/10/20 sweep | Shared K=min(requested K, both candidate reference-plot counts). Validation accuracy 72.6277/73.1752/72.9319/71.7457%; cleaned test with all 4,200 references 71.8448/73.4224/73.9607/74.1277%. K20 still trails fusion 74.3133% and RF 75.1670%; mean 52 rescues versus 54.5 harms. Fallback K5 loses to strict K5 on both cohorts | Increasing K helps test accuracy but harms validation beyond K5 and reduces macro F1. Preserve every K, strict-K5 comparator, actual-K counts and conditional paired intervals; no winner selection or M4 change |
 | Validation-selected geometry thresholds | Complete; harm limits do not transfer | Strict K5/K10 with S=min(A_image,A_geo); 18 validation selections reuse the router's 20/10/0-plot × 0.5/0.7/0.9 harm grid and 1% coverage guard. Four distinct thresholds result; 0.7/0.9 and all plot minima coincide. Test accuracy ranges 73.9792–74.6474% with 3,378 references and 73.8679–74.3875% with 4,200, versus fusion 74.3133% and RF 75.1670% | Every test policy exceeds its validation harm cap; all paired accuracy intervals versus fusion include zero, and weighted/macro F1 remain below fusion. Preserve all frozen policies and both banks; no test reselection or M4 change |
 | Habitat-adapted image geometry | Complete; better test correction, weaker validation accuracy/ranking | Four development-train-fitted encoders embed both references and queries; no OOF diagnostics. Strict zero-K5/K10 validation accuracy is 72.2932/72.0195%, below pretrained geometry. All 18 validation selections reduce to two thresholds; selected test accuracy is 75.4454/75.6682% with 3,378 references and 75.7053/75.5568% with 4,200, versus fusion 74.3133% and RF 75.1670% | Adaptation reduces harmful interventions on test; 0.7/0.9 caps hold pooled, while 0.5 caps fail. Test weighted F1 improves over fusion but macro F1 remains lower; all selected accuracy intervals versus fusion include/touch zero, and all RF contrasts include zero. Preserve cohort reversal, historical-cache lineage limits, both banks and original M4 no-go |
+| Adapted image embedding visualization | Descriptive follow-up | PCA and t-SNE for 4,200 development and 1,347 cleaned-test images, separately for each of the four development-train-fitted encoders; split membership and habitat labels retained | PCA is fitted on 3,378 development-training images and transforms validation/test. Joint t-SNE is transductive; visual overlap does not estimate router reliability or select a policy. No model fitting, image re-extraction or OOF repetition |
 | M6 Gated residual fusion | Deferred after no-go | The primary router does not meet the declared feasibility criteria | Do not proceed under this failed gate |
 | M7 Robust confirmation | Planned | Selected routers have matched multi-seed internal holdout evidence, not independent confirmation | Seek independent data; do not reinterpret selected validation as confirmation |
 | M8 Integration and reproducibility | Partially delivered through M4 | Reproducible milestone runners, immutable artifacts, and 751 focused regression cases exist | Preserve M4 integration; broader method integration remains deferred |
@@ -1155,6 +1193,9 @@ results, unresolved issues, and completion evidence for that step.
 | [`20_joint_tcp_router_capacity.md`](20_joint_tcp_router_capacity.md) | Larger shared MLPs with auxiliary TCP supervision, both non-embedding input sets and matched CE-only controls | Complete: 128 new fits plus 32 reused `[32]` controls; exact September 15 legacy experts reproduce fusion 74.3133%. At minimum 20 plots / H≤0.7R, larger numerical routers reach 74.109–74.722%, below `[32]` CE-only 74.814% and matched RF 75.130%. All larger configurations worsen held-out state NLL; TCP gains are mixed. Every setting retained; no winner promoted |
 | [`21_embedding_geometry_correction.md`](21_embedding_geometry_correction.md) | Nine-study geometry exploration and correction record | Complete: initial geometry/disagreement diagnostics, K and reference-bank comparisons, validation-fitted harm thresholds, and adapted-encoder ablation. Canonical artifact inventory and byte-preserving layout migration verified; no experiments rerun for reorganization |
 | [`22_project_structure.md`](22_project_structure.md) | Project-wide naming and structure audit | Complete: canonical geometry and helper entrypoints, full study/source/artifact catalog, structural verification and preserved historical provenance; no experiment reruns |
+| [`23_geometry_router_confusion_review.md`](23_geometry_router_confusion_review.md) | Adapted geometry, historical RF and fusion confusion comparison | Descriptive review of the same 1,347 cleaned-test images / 531 plots across four seeds; default 4,200-reference strict-K5 panel, with both banks and K5/K10 retained. October 6 adds OR/AND combinations of RF and 4,200-reference K5 geometry: 458/99 interventions and net gains of 88/33 correct decisions. Reuses saved predictions and thresholds; combinations proposed after inspecting test overlap remain exploratory |
+| [`24_adapted_embedding_visualization.md`](24_adapted_embedding_visualization.md) | Adapted image and geo embedding spaces for development and cleaned test | Four cached image encoder seeds and one shared geo projection; train-fitted PCA and joint t-SNE, split-specific comparison panels, habitat focus views and interactive inspection. Geo uses L2-normalized vectors and unique plots. Projection settings and saved coordinates support reproduction; no new router evaluation |
+| [`25_router_research_summary.md`](25_router_research_summary.md) | Concise research report on output and geometry routers | Two router designs and application, RF/geometry/OR/AND performance, habitat confusions and oracle-gap accounting. Reuses saved predictions; missed rescues dominate both gaps, while the image gate rejects both real rescues and many harmful switches. Includes reproduction, exact tables and readable figures |
 | [Geometry policy validation](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_validation_v1/report.md) and [matched cleaned-test comparison](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_cleaned_test_v1/report.md) | Separate fixed geometry rule; not M5/M6 | Complete: no learned router or threshold search. Validation 71.0462% → 72.6277%; historical cleaned-test fusion 74.3133% → 72.3645%. Geometry minus fusion accuracy CI [−3.8189, −0.1307] pp; geometry minus RF [−4.5770, −0.9992] pp. Frozen reference bank, matched historical predictions, per-habitat results and append-only test receipt retained |
 | [Full development reference bank](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_full_reference_cleaned_test_v1/report.md) | User-requested expansion from 3,378 to all 4,200 references | Complete: identical experts and strict-positive rule; accuracy 71.8448% versus 72.3645% with the original bank, fusion 74.3133% and RF 75.1670%. Six-method comparison, changed-action analysis, paired plot intervals and a separate test receipt preserve the earlier evaluation |
 | [Five-neighbor geometry correction](../../multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_geometry_k5_correction_v1/report.md) | User-requested K5 comparison on validation and cleaned test with both reference banks | Complete: validation improves from fusion 71.0462% to 73.3577%; test K5 reaches 73.8122% / 73.7194% versus K1 72.3645% / 71.8448%. With all 4,200 references, mean 49.5 rescues and 57.5 harms leave a −0.5939 pp difference from fusion, conditional CI [−2.4800, +1.3109]. Full-cohort support controls, per-class metrics, 22 paired intervals and an additional test event preserve prior evaluations |
@@ -1296,6 +1337,10 @@ retain this negative sensitivity result without additional test-driven tuning.
 
 | Date | Change |
 |---|---|
+| 2026-10-06 | Added record 25 and a concise research report comparing output-based RF and adapted geometry routers, OR/AND combinations and the rescue oracle. The report includes readable confusion comparisons and measured gap diagnostics: geometry misses 315 of 471 possible rescues and adds 81 harms; only seven missed rescues lack reference support. Reproducible figures/tables preserve original artifacts and distinguish measured findings from causal hypotheses. |
+| 2026-10-06 | Extended record 23's confusion review with user-requested OR/AND rules combining the historical RF router and 4,200-reference strict-K5 adapted geometry router. OR intervenes on 458 seed–image decisions (224 rescues, 136 harms; accuracy 75.9465%); AND intervenes on 99 (61 rescues, 28 harms; accuracy 74.9258%). The same CLI reproduces five-method metrics, per-seed/per-habitat tables and paired predictions. Component thresholds stay fixed; combinations were proposed after inspecting test overlap and are exploratory. |
+| 2026-10-05 | Added a separate adapted image embedding visualization for all development and cleaned-test samples using the four cached encoders. Record 24 documents train-fitted PCA, joint descriptive t-SNE, the canonical plot entrypoint and reproducible outputs; no encoder inference, router evaluation or OOF diagnostics are repeated. |
+| 2026-10-05 | Added a separate confusion review extending the September 15 report: matched adapted-geometry correction, historical full-feature RF correction and fusion on saved cleaned-test predictions. Record 23 and the study catalog identify the report generator, canonical artifact directory and reproduction commands; both reference banks and strict K5/K10 remain available. |
 | 2026-10-01 | Added consolidated geometry reproduction instructions to record 21: environment and input requirements, saved-run checks, fresh development computation, frozen adapted extraction, exact numerical metric example and expected outputs. Verified the four adapted headline results; documented that an isolated end-to-end cleaned-test rebuild is not yet implemented. |
 | 2026-10-01 | Audited naming across M1–M4, router variants, ConfidNet, joint-TCP and geometry; added a canonical geometry CLI/module, consistent helper entrypoints, full study catalog and record 22. Existing scientific code/configurations and test-registry events remain unchanged; public dispatch and structure checks verified. |
 | 2026-10-01 | Standardized all nine completed geometry bundles under the versioned geo-helpfulness artifact root; added record 21, a machine-readable layout catalog and read-only verification. Original files, source/code bindings and all cleaned-test registry entries are preserved; directory aliases keep historical paths and report links working. No fitting, threshold selection, scoring or OOF diagnostics were repeated. |

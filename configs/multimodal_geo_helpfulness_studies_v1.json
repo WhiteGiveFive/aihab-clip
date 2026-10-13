@@ -870,6 +870,67 @@
       "notes": "Canonical geometry subcommand validate checks organization and hashes without evaluation. The older sealed layout catalog remains unchanged."
     },
     {
+      "id": "geometry_router_confusion_review_v1",
+      "title": "Cleaned-test confusion review of adapted geometry, RF correction and fusion",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/23_geometry_router_confusion_review.md"
+      ],
+      "entrypoints": [
+        "tools/plot_multimodal_geo_helpfulness_confusion_review.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_confusion_review.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/geometry_router_confusion_review_v1"
+      ],
+      "status": "review",
+      "notes": "Descriptive extension of the September 15 report using saved matched cleaned-test predictions. The default panel uses adapted image geometry with 4200 references and strict K5 under the frozen 20-plot/H<=0.7R validation selection. All four bank/K combinations remain in the review; no new fitting, threshold search or test policy selection."
+    },
+    {
+      "id": "router_research_summary_v1",
+      "title": "Concise research report on output and geometry routing with oracle-gap diagnostics",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/25_router_research_summary.md"
+      ],
+      "entrypoints": [
+        "tools/plot_multimodal_geo_helpfulness_router_research_report.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_router_research_report.py",
+        "multimodal/geo_helpfulness_router_research_figures.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/router_research_summary_v1"
+      ],
+      "status": "review",
+      "notes": "Research narrative comparing the historical full-feature RF and adapted geometry with 4200 references, strict K5, frozen validation thresholds, plus OR/AND and the fixed-expert rescue oracle. Recomputes metrics, habitat outcomes and geometry rejection diagnostics from authenticated saved predictions. Focused confusion figure retains complete row denominators and links full matrices. No model fitting, threshold search or independent confirmation."
+    },
+    {
+      "id": "adapted_embedding_visualization_v1",
+      "title": "Adapted image and geo embedding visualization for development and cleaned test",
+      "records": [
+        "dev_plans/reliability_aware_geo_fusion/24_adapted_embedding_visualization.md"
+      ],
+      "entrypoints": [
+        "tools/plot_multimodal_geo_helpfulness_adapted_embeddings.py"
+      ],
+      "modules": [
+        "multimodal/geo_helpfulness_adapted_embeddings.py",
+        "multimodal/geo_helpfulness_adapted_embedding_figures.py",
+        "multimodal/geo_helpfulness_geo_embedding_visualization.py",
+        "multimodal/geo_helpfulness_image_geo_figures.py"
+      ],
+      "configs": [],
+      "artifact_roots": [
+        "multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/adapted_embedding_visualization_v1"
+      ],
+      "status": "review",
+      "notes": "Descriptive PCA and t-SNE projections of four existing development-train-fitted image encoder caches, covering 4200 development and 1347 cleaned-test images per seed, compared with cached 64-dimensional 100 m AlphaEarth/GSE geo vectors for the same cohort. Geo uses one L2-normalized vector per plot (1300 train, 325 validation, 531 cleaned test), without coordinate standardization; its projection is shared across encoder seeds. Separate 50-component PCA transforms fit training samples only; label-free joint t-SNE includes all splits. Existing image coordinates are preserved. Image/photo and geo/plot sampling units differ, and cross-space axes/distances are not directly comparable. No model fitting, image inference, router evaluation or test policy selection."
+    },
+    {
       "id": "project_structure_v1",
       "title": "Project-wide study catalog, compatibility entrypoints, and preservation audits",
       "records": [
