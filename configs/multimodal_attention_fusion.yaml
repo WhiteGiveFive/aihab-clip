@@ -1,0 +1,221 @@
+# M1 study contract; consumed by the dedicated M2 runner once implemented.
+# Standalone configuration: do not merge generic multimodal defaults into it.
+# A001 (2026-10-12): ReLU classifier; retain GELU adapters and fusion FFNs.
+# A002 (2026-10-12): Preserve historical CUDA extraction numerics separately
+# from strict FP32 fusion/head training.
+schema_version: 1
+study_id: attention_fusion_v1
+method: attention_fusion
+regime: frozen_cached
+protocol_date: '2026-10-12'
+paths:
+  artifact_root: multimodal_artifacts/attention_fusion/cs/gse_100m/attention_fusion_v1
+  source_protocol_root: multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1
+  assignments: multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/protocol/development_assignments.parquet
+  development_geo_tables:
+    - multimodal_artifacts/joined_tables/cs/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_pretrained/gse_100m/seed1/train.parquet
+    - multimodal_artifacts/joined_tables/cs/hf-hub_timm_ViT-SO400M-16-SigLIP2-384_pretrained/gse_100m/seed1/val.parquet
+  image_root: data/CS_Xplots_2019_2023_train
+  encoder_template: multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/protocol_v1/development_validation/seed_{seed}/adapted_visual_tower.safetensors
+  validation_cache_template: multimodal_artifacts/analysis/cs/gse_100m/geo_helpfulness/joint_tcp_router_v1/producers/seed_{seed}/validation/features.npz
+  # M2 creates these development-only caches; their absence is recorded in M1.
+  prepared_cache_template: multimodal_artifacts/attention_fusion/cs/gse_100m/attention_fusion_v1/inputs/seed{seed}/{role}.npz
+data:
+  dataset_id: cs
+  geo_source: gse_100m
+  train_rows: 3378
+  train_plots: 1300
+  validation_rows: 822
+  validation_plots: 325
+  development_rows: 4200
+  development_plots: 1625
+  image_dim: 1152
+  geo_dim: 64
+  geo_columns: [A00, A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, A30, A31, A32, A33, A34, A35, A36, A37, A38, A39, A40, A41, A42, A43, A44, A45, A46, A47, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63]
+  num_classes: 18
+  dense_to_canonical_l3: [0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19]
+  split_assignment_seed: 20260824
+  training_seeds: [1, 2, 3, 4]
+  order: row_uid_ascending_within_role
+  oof_folds_used: false
+  allow_test_features_or_labels: false
+image:
+  family: training_partition_habitat_adapted
+  model: hf-hub:timm/ViT-SO400M-16-SigLIP2-384
+  initial_hub_revision: fec784dabb3081a5f101fc74eefaf9d1ed08237b
+  encoder_fit_role: train
+  encoder_frozen: true
+  normalization: l2
+  extraction_views: 1
+  extraction_precision: float32
+  extraction_mode: eval
+  extraction_device: cuda
+  extraction_batch_size: 16
+  extraction_cudnn_allow_tf32: true
+  extraction_matmul_allow_tf32: false
+  zero_or_nonfinite: error
+  pixel_recipe: legacy_opencv_bgr_439_v1
+  decoder: cv2_imread_color_bgr
+  pre_resize_size: [439, 439]
+  pre_resize_interpolation: cv2_inter_linear
+  pil_channel_swap: false
+  prediction_resize_size: [384, 384]
+  prediction_interpolation: bicubic
+  prediction_antialias: true
+  prediction_convert_rgb: true
+  prediction_mean: [0.5, 0.5, 0.5]
+  prediction_std: [0.5, 0.5, 0.5]
+geo:
+  default: native
+  comparison: [native, l2, standardize]
+  input: native_development_A00_to_A63
+  nonfinite: error
+  l2_epsilon: 1.0e-12
+  l2_zero_vector: keep_zero_and_record_count
+  standardize_fit_role: train
+  standardize_weighting: image_rows
+  standardize_ddof: 0
+  standardize_statistics_dtype: float64
+  standardize_constant_epsilon: 1.0e-12
+  standardize_constant_scale: 1.0
+  model_input_dtype: float32
+model:
+  token_dim: 128
+  adapter: linear_gelu_layernorm
+  adapter_dropout: 0.0
+  modality_type_embeddings: true
+  token_order: [image, geo]
+  heads: 4
+  feedforward_dim: 256
+  activation: gelu_exact  # Adapter/fusion activation; classifier is specified below.
+  norm_first: true
+  layernorm_epsilon: 1.0e-5
+  dropout: 0.1
+  linear_bias: true
+  final_encoder_norm: false
+  classifier_hidden_dim: 256
+  classifier: linear_relu_dropout_linear
+  initialization:
+    linear: kaiming_uniform_a_sqrt5_bias_uniform_inverse_sqrt_fan_in
+    qkv: xavier_uniform_combined_qkv_bias_zero
+    attention_output: kaiming_uniform_a_sqrt5_bias_zero
+    layernorm: weight_one_bias_zero
+    learned_tokens_and_types: normal_std_0.02
+    transformer_layers: independently_initialized
+    component_seed_template: '{study_id}|{seed}|{component_name}'
+    component_seed_hash: sha256_first_4_bytes_unsigned_big_endian
+    component_names: [image_adapter, geo_adapter, image_type, geo_type, classifier, cls_token, 'fusion_layer_{index}']
+    shared_shape_matched_components_same_seed: true
+candidates:
+  - {id: image_only, geo: false, architecture: mlp, input_dim: 1152, expected_trainable_parameters: 299794}
+  - {id: geo_only, geo: true, architecture: mlp, input_dim: 64, expected_trainable_parameters: 21266}
+  - {id: raw_concat, geo: true, architecture: mlp, input_dim: 1216, expected_trainable_parameters: 316178}
+  - {id: projected_concat, geo: true, architecture: adapters_then_concat, expected_trainable_parameters: 227090}
+  - {id: tokenwise_capacity, geo: true, architecture: two_preln_tokenwise_residual_ffns, readout: updated_modality_concat, expected_trainable_parameters: 359442}
+  - {id: attention_two_token, geo: true, architecture: self_attention, layers: 1, readout: updated_modality_concat, expected_trainable_parameters: 359570}
+  - {id: attention_cls, geo: true, architecture: self_attention, layers: 2, readout: updated_cls, cls_type_embedding: false, expected_trainable_parameters: 459410}
+training:
+  loss: unweighted_cross_entropy
+  label_smoothing: 0.0
+  batch_size: 128
+  drop_last: false
+  shuffle: true
+  num_workers: 0
+  epochs: 50
+  checkpoint_epoch: 50
+  early_stopping: false
+  optimizer: adamw
+  learning_rates: [0.0001, 0.0003, 0.001]
+  betas: [0.9, 0.999]
+  epsilon: 1.0e-8
+  weight_decay: 0.0001
+  decay_parameter_scope: all_trainable
+  scheduler: none
+  gradient_clipping: none
+  precision: float32
+  seed_python_numpy_torch: true
+  independent_shuffle_generator: true
+  deterministic_algorithms: true
+  cudnn_benchmark: false
+  allow_tf32: false
+  cublas_workspace_config: ':4096:8'
+  batch_schedule: seed_matched_across_candidates_and_learning_rates
+  save_every_candidate_final_checkpoint: true
+  validation_frequency_epochs: 1
+  validation_selects_epoch: false
+selection:
+  scope: one_learning_rate_per_candidate_and_geo_arm_across_all_seeds
+  rank_descending: [mean_validation_acc1, mean_validation_weighted_f1, mean_validation_mcc]
+  final_tiebreak: smaller_learning_rate_then_candidate_id
+  use_unrounded_metrics: true
+  select_best_seed: false
+  primary_geo_arm: native
+  primary_contrast: attention_two_token_minus_projected_concat
+  supporting_comparators: [raw_concat, tokenwise_capacity, image_only]
+  failed_fit_policy: repair_or_report_incomplete_never_omit_seed
+metrics:
+  required: [acc1, acc3, weighted_f1, mcc, confusion_matrix]
+  topk_ties: smaller_dense_class_id
+  confusion_order: fixed_18_classes
+  confusion_outputs: [counts, row_normalized]
+  unsupported_class_recall: null
+  weighted_f1_zero_division: 0
+  seed_aggregation: mean_and_sample_std_plus_each_seed
+  bootstrap:
+    unit: whole_validation_plot
+    paired: true
+    same_resample_for_all_seeds: true
+    replicates: 10000
+    seed: 20261012
+    confidence: 0.95
+    interval: percentile
+    statistic: mean_across_seeds_of_paired_metric_difference
+    scope: conditional_on_selected_recipes_and_this_split
+interpretation:
+  supported_improvement: positive_mean_acc1_at_least_3_positive_seeds_ci_lower_gt_zero
+  supporting_metric_guard: no_negative_mean_acc3_weighted_f1_or_mcc
+  no_improvement: nonpositive_mean_acc1_at_least_3_nonpositive_seeds
+  otherwise: inconclusive
+  minimum_practical_effect: null
+  report_effect: absolute_percentage_points_and_rescued_harmed_images
+  attention_specific_claim: require_support_over_projected_raw_and_capacity_controls
+final_fit:
+  routes: [development_train, all_development]
+  retained_train_checkpoint: selected_epoch50_existing_checkpoint
+  all_development_rows: 4200
+  keep_same_train_partition_encoder: true
+  refit_components: [adapters_if_present, fusion_if_present, classifier]
+  initialization: fresh_same_seed_and_selected_recipe
+  epochs: 50
+  reuse_selected_learning_rate: true
+  standardize_refit_on_all_development: true
+  candidates: all_19_selected_candidate_geo_arms
+  new_fits: 76
+  compare_routes_on: separate_exploratory_test_application
+artifacts:
+  keep_all_candidate_checkpoints: true
+  inference_bundle: encoder_reference_and_sha256_plus_head_weights_preprocessing_class_map_recipe
+  export_includes_encoder_weights: true
+  resume_state: optimizer_rng_shuffle_generator_epoch
+  resume_boundary: completed_epoch
+  save_latest_resume_each_epoch: true
+  predictions: row_uid_plot_idx_label_logits_probabilities_pred_top3
+  provenance: config_and_code_hashes_inputs_encoder_hashes_environment_device_seeds
+  overwrite_completed_runs: false
+budget:
+  candidate_geo_arms: 19
+  learning_rates_per_arm: 3
+  seeds: 4
+  development_fits: 228
+  development_epochs_total: 11400
+  selected_train_checkpoints: 76
+  all_development_refits: 76
+joint_extension:
+  status: recipe_to_freeze_before_m3j
+  models: [image_only, raw_concat, projected_concat, attention_two_token]
+  regimes: [frozen_online, joint_partial]
+  seeds: [1, 2, 3, 4]
+  maximum_recipes_per_model_regime: 3
+  maximum_candidate_fits: 96
+  maximum_epochs_per_fit: 50
+  full_encoder_unfreezing: deferred
