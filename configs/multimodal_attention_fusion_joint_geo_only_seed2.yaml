@@ -1,0 +1,112 @@
+# Prepared template; comparative training requires a separate launch.
+# M3J seed-2 geo-only completion; one shared reference, no image encoder.
+schema_version: 1
+study_id: attention_fusion_joint_geo_only_seed2_direct_v1
+verification_policy: direct_freeze_checks_v1
+result_assurance: provisional_unresolved_memory_integrity
+initialization_seed_namespace: attention_fusion_v1
+base_config: configs/multimodal_attention_fusion.yaml
+bypass_config: configs/multimodal_attention_fusion_cls_bypass.yaml
+source_config: configs/multimodal_geo_helpfulness.yaml
+paths:
+  artifact_root: multimodal_artifacts/attention_fusion/cs/gse_100m/attention_fusion_joint_geo_only_seed2_direct_v1
+training_seeds: [1, 2, 3, 4]
+initializations: [pretrained, cs_adapted]
+regimes: [joint_partial, frozen_online]
+candidates:
+  - image_only
+  - raw_concat
+  - projected_concat
+  - tokenwise_capacity
+  - attention_two_token
+  - attention_cls
+  - attention_cls_skip_adapted
+  - attention_cls_skip_original
+authorized_scope:
+  regime: geo_only
+  seeds: [2]
+  initializations: [not_applicable]
+training:
+  epochs: 50
+  batch_size: 16
+  gradient_accumulation_steps: 1
+  drop_last: false
+  num_workers: 0
+  cpu_threads: 1
+  loss: unweighted_cross_entropy
+  label_smoothing: 0.0
+  optimizer: adam
+  learning_rate: 0.00005
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  weight_decay: 0.0
+  amsgrad: false
+  gradient_clipping: null
+  scheduler: cosine_annealing_lr
+  scheduler_t_max: 50
+  scheduler_eta_min: 0.0
+  scheduler_step: end_of_epoch
+  warmup_epochs: 0
+  early_stopping: false
+  parameter_dtype: float32
+  autocast_dtype: float16
+  grad_scaler: false
+  validation_autocast: false
+  cudnn_allow_tf32: true
+  matmul_allow_tf32: false
+  float32_matmul_precision: highest
+  deterministic_algorithms: true
+  cudnn_benchmark: false
+  cublas_workspace_config: ':4096:8'
+  loader_rng_policy: declared_namespaces_v1
+  paired_augmentation: per_seed_epoch_row_uid
+  augmentation_seed_namespace: attention_fusion_joint_v1
+  shuffle_seed_namespace: attention_fusion_joint_v1
+  dropout_seed_namespace: attention_fusion_joint_v1
+geo:
+  preprocessing: standardize
+  fit_role: train
+  ddof: 0
+  statistics_dtype: float64
+  model_input_dtype: float32
+visual:
+  trainable_blocks: [17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
+  train_final_norm: true
+  train_attention_pool: true
+  expected_trainable_parameters: 167635696
+  expected_total_parameters: 428256704
+  frozen_modules_eval: true
+  normalization: l2
+checkpoint:
+  storage: shared_objects_option3
+  final_epoch: 50
+  best_order: [acc1, weighted_f1, mcc, earliest_epoch]
+  epoch_zero_eligible: false
+  # Preserve optimizer/scheduler state for future reuse; this workflow starts fresh.
+  resume_boundary: completed_epoch
+  automatic_resume: false
+  keep_latest_resume: true
+  keep_final_and_best: true
+  prediction_replay: load_and_evaluate
+reporting:
+  # D047: retain frozen-online for a later investigation; require only partial-joint now.
+  deferred_reference_regimes: [frozen_online]
+  completed_reference_roots:
+    - multimodal_artifacts/attention_fusion/cs/gse_100m/attention_fusion_joint_seed2_direct_v1
+  checkpoint_policies: [final, best]
+  selection_metrics: [acc1, weighted_f1, mcc]
+  primary_contrast: [attention_two_token, projected_concat]
+  supporting_anchors: [raw_concat, tokenwise_capacity, image_only]
+  bootstrap_replicates: 10000
+  bootstrap_seed: 20261012
+  single_seed_interpretation: provisional_descriptive_only
+  figures_every_epochs: 1
+refit_policy:
+  stage: M4_only
+  epochs: 50
+  reinitialize_fusion_head: true
+  start_from_declared_initial_encoder: true
+  refit_geo_on_all_development: true
+  keep_development_final_and_best: true
+  select_best_during_all_development_refit: false
+  test_guides_selection: false

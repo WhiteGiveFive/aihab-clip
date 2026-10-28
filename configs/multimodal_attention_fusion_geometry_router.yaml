@@ -1,0 +1,69 @@
+schema_version: 1
+study_id: seed1_pretrained_cls_original_v1
+artifact_root: multimodal_artifacts/analysis/cs/gse_100m/attention_fusion_router/seed1_pretrained_cls_original_v1
+fusion_study: multimodal_artifacts/attention_fusion/cs/gse_100m/attention_fusion_joint_direct_v1
+fusion_run: runs/seed1/joint_partial/attention_cls_skip_original/pretrained
+geo_study: multimodal_artifacts/attention_fusion/cs/gse_100m/attention_fusion_joint_geo_only_direct_v1
+geo_run: runs/seed1/geo_only
+source_config: configs/multimodal_geo_helpfulness.yaml
+scope:
+  seed: 1
+  candidate: attention_cls_skip_original
+  initialization: pretrained
+  regime: joint_partial
+  checkpoint_policies: [final, best]
+  geometry_arms: [pretrained, checkpoint_matched]
+  training_allowed: false
+  cleaned_test_allowed: false
+  current_stages: [R1, R2]
+data:
+  train_images: 3378
+  train_plots: 1300
+  validation_images: 822
+  validation_plots: 325
+  classes: 18
+  image_dim: 1152
+  geo_dim: 64
+checkpoints:
+  fusion: {final: 50, best: 36}
+  geo: {final: 50, best: 11}
+extraction:
+  batch_size: 16
+  num_workers: 0
+  cpu_threads: 1
+  device: cuda
+  autocast: false
+  parameter_dtype: float32
+  cudnn_allow_tf32: true
+  matmul_allow_tf32: false
+  float32_matmul_precision: highest
+  deterministic_algorithms: true
+  cublas_workspace_config: ':4096:8'
+  transform: historical_deterministic_evaluation_for_both_roles
+geometry:
+  k: 5
+  epsilon: 0.00000001
+  reference_role: train
+  query_role: validation
+  image_normalization: l2
+  geo_input: native
+  geo_normalization: l2
+  distance: cosine_float64
+  plot_distance: minimum_photo_distance
+  class_distance: mean_nearest_k_distinct_plots
+  support: strict_both_candidate_classes
+  score: minimum_image_geo_log_distance_ratio
+prospective_r3:
+  fixed_threshold: 0.0
+  threshold_comparison: strict_greater_than
+  fit_separately_per_comparison: true
+  minimum_acted_plots: 20
+  minimum_coverage_fraction: 0.01
+  maximum_harms_per_rescue: 0.7
+  positive_net_rescue_required: true
+  selection_objective: maximize_rescues_minus_harms
+  tie_breaks: [fewer_harms, fewer_actions, higher_threshold]
+  threshold_candidates: [never, zero, positive_score_midpoints]
+  no_feasible_policy: retain_fusion
+  selected_prediction: full_probability_vector_of_chosen_expert
+result_assurance: provisional_unresolved_memory_integrity

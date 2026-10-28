@@ -1,0 +1,13 @@
+schema_version: 1
+stage: R3
+input_config: configs/multimodal_attention_fusion_geometry_router.yaml
+output_subdirectory: r3_validation_v1
+checkpoint_policies: [final, best]
+geometry_arms: [pretrained, checkpoint_matched]
+routing_rules: [fixed_zero, selected]
+expected_evaluations: 8
+selection_recipe: prospective_r3_from_frozen_input_declaration
+evaluation_role: validation
+training_allowed: false
+cleaned_test_allowed: false
+result_assurance: provisional_unresolved_memory_integrity

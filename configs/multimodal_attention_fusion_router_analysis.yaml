@@ -1,0 +1,21 @@
+schema_version: 1
+stage: R4
+input_config: configs/multimodal_attention_fusion_router_validation.yaml
+output_subdirectory: r4_analysis_v1
+expected_evaluations: 8
+analysis_role: validation
+bootstrap:
+  metric: paired_image_weighted_acc1_delta
+  unit: whole_plot
+  resamples: 10000
+  seed: 20261023
+  interval: percentile_95
+  quantile_method: linear
+  refit_thresholds: false
+case_index:
+  per_outcome: 3
+  order: ascending_row_uid
+training_allowed: false
+threshold_reselection_allowed: false
+cleaned_test_allowed: false
+result_assurance: provisional_unresolved_memory_integrity
